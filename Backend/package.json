@@ -1,4 +1,7 @@
 {
+  "name": "amonhub-backend",
+  "version": "1.0.0",
+  "type": "module",
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
     "cors": "^2.8.5",
