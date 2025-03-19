@@ -1,5 +1,5 @@
 import express from "express";
-import supabase from "../Configuracion/Supabase.js"; // ✅ Corrección
+import supabase from "../Configuracion/Supabase.js";
 
 const router = express.Router();
 
@@ -30,7 +30,6 @@ router.post("/login", async (req, res) => {
 });
 
 
-// 🔹 Ruta para obtener todos los usuarios
 router.get("/usuarios", async (req, res) => {
     const { data, error } = await supabase.from("Usuarios").select("*"); // ✅ Corrección: minúsculas
 

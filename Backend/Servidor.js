@@ -5,12 +5,12 @@ import dataRoutes from './Rutas/DataRutas.js';
 import authRoutes from './Rutas/AuthRutas.js';
 import supabase from './Configuracion/Supabase.js';
 
-dotenv.config(); // ✅ Mantenerlo aquí
+dotenv.config();
 
 async function testDBConnection() {
     console.log('Verificando conexión a la base de datos...');
 
-    const { data, error } = await supabase.from('Usuarios').select('*'); // ✅ Corrección: minúsculas
+    const { data, error } = await supabase.from('Usuarios').select('*');
 
     if (error) {
         console.error('Error al conectar con la base de datos:', error.message);
