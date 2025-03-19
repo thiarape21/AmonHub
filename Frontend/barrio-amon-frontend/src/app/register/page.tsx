@@ -8,6 +8,8 @@ import Link from "next/link";
 import { AuthCard } from "@/components/auth/auth-card";
 import { FormInput } from "@/components/auth/form-input";
 import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 // Define validation schema with Zod
 const formSchema = z
@@ -29,6 +31,10 @@ const formSchema = z
   });
 
 export default function RegisterPage() {
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
   // Initialize form with React Hook Form and Zod validation
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -41,9 +47,35 @@ export default function RegisterPage() {
   });
 
   // Form submission handler
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    // TODO: Add registration logic here
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setErrorMessage(null);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("http://localhost:3030/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: values.fullName,
+          email: values.email,
+          password: values.password,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setErrorMessage(result.message);
+        return;
+      }
+
+      // Registro exitoso, redirigir al login
+      router.push("/login?registered=true");
+    } catch (error) {
+      setErrorMessage("Error de conexión con el servidor");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -72,6 +104,11 @@ export default function RegisterPage() {
             placeholder="Confirmar contraseña"
             type="password"
           />
+
+          {errorMessage && (
+            <p className="text-red-500 text-sm">{errorMessage}</p>
+          )}
+
           <div className="flex items-center pt-2">
             <div className="text-sm">
               ¿Ya tienes una cuenta?{" "}
