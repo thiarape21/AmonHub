@@ -8,17 +8,29 @@ import Link from "next/link";
 import { AuthCard } from "@/components/auth/auth-card";
 import { FormInput } from "@/components/auth/form-input";
 import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
-import { useState } from "react";
-import { useRouter } from "next/navigation"; // Para redirigir tras el login
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Por favor ingrese un correo válido" }),
-  password: z.string().min(8, { message: "La contraseña debe tener al menos 8 caracteres" }),
+  password: z
+    .string()
+    .min(8, { message: "La contraseña debe tener al menos 8 caracteres" }),
 });
 
 export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // Verificar si el usuario viene de un registro exitoso
+    if (searchParams.get("registered") === "true") {
+      setSuccessMessage("Registro exitoso. Por favor inicie sesión.");
+    }
+  }, [searchParams]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -26,7 +38,9 @@ export default function LoginPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setErrorMessage(null); // Limpia errores previos
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setIsLoading(true);
 
     try {
       const response = await fetch("http://localhost:5000/api/auth/login", {
@@ -38,15 +52,16 @@ export default function LoginPage() {
 
       if (!response.ok) {
         setErrorMessage(result.message);
-        console.log(result.message);
         return;
       }
 
-      localStorage.setItem("token", result.token); // Guarda el token en localStorage
-      router.push("/dashboard"); // Redirige al usuario tras autenticarse
-
+      // Guardar datos del usuario y redirigir
+      localStorage.setItem("user", JSON.stringify(result.user));
+      router.push("/dashboard");
     } catch (error) {
       setErrorMessage("Error de conexión con el servidor");
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -54,15 +69,32 @@ export default function LoginPage() {
     <AuthCard title="Iniciar sesión">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <FormInput control={form.control} name="email" placeholder="Ingrese su correo" />
-          <FormInput control={form.control} name="password" placeholder="Ingrese su contraseña"  />
-          
-          {errorMessage && <p className="text-red-500 text-sm">{errorMessage}</p>}
+          <FormInput
+            control={form.control}
+            name="email"
+            placeholder="Ingrese su correo"
+          />
+          <FormInput
+            control={form.control}
+            name="password"
+            placeholder="Ingrese su contraseña"
+            type="password"
+          />
+
+          {errorMessage && (
+            <p className="text-red-500 text-sm">{errorMessage}</p>
+          )}
+
+          {successMessage && (
+            <p className="text-green-500 text-sm">{successMessage}</p>
+          )}
 
           <div className="flex items-center justify-between pt-2">
             <div className="text-sm">
               ¿No tienes cuenta?{" "}
-              <Link href="/register" className="text-blue-500 hover:underline">Regístrate</Link>
+              <Link href="/register" className="text-blue-500 hover:underline">
+                Regístrate
+              </Link>
             </div>
           </div>
           <div className="text-sm text-blue-500 hover:underline">
