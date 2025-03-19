@@ -4,17 +4,17 @@ import supabase from "../Configuracion/Supabase.js"; // ✅ Corrección
 const router = express.Router();
 
 router.post("/login", async (req, res) => {
-    const { correo, contrasena } = req.body;
+    const { email, password } = req.body;
 
     console.log("Datos recibidos en el login:");
-    console.log("Correo:", correo);
-    console.log("Contraseña:", contrasena);
+    console.log("Correo:", email);
+    console.log("Contraseña:", password);
 
     const { data, error } = await supabase
         .from("Usuarios")
         .select("*")
-        .eq("correo", correo)
-        .eq("contrasena", contrasena)
+        .eq("email", email)
+        .eq("password", password)
         .single();
 
     console.log("Respuesta de Supabase:", data, error);
