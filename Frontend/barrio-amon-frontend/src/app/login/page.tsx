@@ -29,19 +29,16 @@ export default function LoginPage() {
     setErrorMessage(null); // Limpia errores previos
 
     try {
-      console.log("MALLLLLL 0");
       const response = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
-      console.log("Aqui no llega");
       const result = await response.json();
 
       if (!response.ok) {
         setErrorMessage(result.message);
         console.log(result.message);
-        console.log("MALLLLLL 1");
         return;
       }
 
