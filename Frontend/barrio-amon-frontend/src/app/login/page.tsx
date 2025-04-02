@@ -56,7 +56,9 @@ export default function LoginPage() {
       }
 
       if (data.user) {
-        router.push("/dashboard");
+        // Get the redirect URL from the search params or default to inicio
+        const redirectTo = searchParams.get("redirectedFrom") || "/inicio";
+        router.push(redirectTo);
       }
     } catch (error) {
       setErrorMessage("Error de conexión con el servidor");

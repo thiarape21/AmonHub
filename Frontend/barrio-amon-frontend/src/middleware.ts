@@ -34,7 +34,32 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  // Public routes that don't require authentication
+  const publicRoutes = ["/login", "/register"];
+  const isPublicRoute = publicRoutes.includes(request.nextUrl.pathname);
+
+  // If user is not signed in and trying to access a protected route
+  if (!session && !isPublicRoute) {
+    const redirectUrl = new URL("/login", request.url);
+    redirectUrl.searchParams.set("redirectedFrom", request.nextUrl.pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // If user is signed in and trying to access a public route
+  if (session && isPublicRoute) {
+    // Allow access to register page if coming from usuarios page
+    if (
+      request.nextUrl.pathname === "/register" &&
+      request.nextUrl.searchParams.get("from") === "usuarios"
+    ) {
+      return response;
+    }
+    return NextResponse.redirect(new URL("/inicio", request.url));
+  }
 
   return response;
 }
