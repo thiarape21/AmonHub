@@ -44,6 +44,11 @@ export default function LoginPage() {
     setSuccessMessage(null);
     setIsLoading(true);
 
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: values.email,
+      password: values.password,
+    });
+
     try {
       if (error) {
         setErrorMessage(error.message);
