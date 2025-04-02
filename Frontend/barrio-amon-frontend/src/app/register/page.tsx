@@ -10,6 +10,7 @@ import { FormInput } from "@/components/auth/form-input";
 import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 // Define validation schema with Zod
 const formSchema = z
@@ -34,6 +35,7 @@ export default function RegisterPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const supabase = createClient();
 
   // Initialize form with React Hook Form and Zod validation
   const form = useForm<z.infer<typeof formSchema>>({
@@ -52,20 +54,18 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3030/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullName: values.fullName,
-          email: values.email,
-          password: values.password,
-        }),
+      const { data, error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: {
+            full_name: values.fullName,
+          },
+        },
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        setErrorMessage(result.message);
+      if (error) {
+        setErrorMessage(error.message);
         return;
       }
 

@@ -10,6 +10,7 @@ import { FormInput } from "@/components/auth/form-input";
 import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Por favor ingrese un correo válido" }),
@@ -24,6 +25,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const supabase = createClient();
 
   useEffect(() => {
     // Verificar si el usuario viene de un registro exitoso
@@ -43,22 +45,19 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3030/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password,
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        setErrorMessage(result.message);
+      if (error) {
+        setErrorMessage(error.message);
         return;
       }
 
-      // Guardar datos del usuario y redirigir
-      localStorage.setItem("user", JSON.stringify(result.user));
-      router.push("/dashboard");
+      if (data.user) {
+        router.push("/dashboard");
+      }
     } catch (error) {
       setErrorMessage("Error de conexión con el servidor");
     } finally {
