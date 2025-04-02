@@ -1,5 +1,5 @@
 import express from "express";
-import supabase from "../Configuracion/Supabase.js";
+import { supabase } from "../Configuracion/Supabase.js";
 
 const router = express.Router();
 
@@ -40,34 +40,21 @@ router.post("/login", async (req, res) => {
 
 // Nuevo endpoint para registro de usuarios
 router.post("/register", async (req, res) => {
-  const { fullName, email, password } = req.body;
+  const { user_id, full_name, email } = req.body;
 
-  if (!fullName || !email || !password) {
+  if (!user_id || !full_name || !email) {
     return res.status(400).json({ message: "Todos los campos son requeridos" });
   }
 
   try {
-    // Verificar si el correo ya está registrado
-    const { data: existingUser } = await supabase
-      .from("Usuarios")
-      .select("*")
-      .eq("email", email)
-      .single();
-
-    if (existingUser) {
-      return res
-        .status(409)
-        .json({ message: "Este correo ya está registrado" });
-    }
-
     // Crear nuevo usuario
     const { data, error } = await supabase
       .from("Usuarios")
       .insert([
         {
-          nombre: fullName,
+          user_id,
+          full_name,
           email,
-          password,
         },
       ])
       .select();
@@ -80,13 +67,9 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    // No enviar la contraseña al cliente
-    const userResponse = data[0];
-    const { password: _, ...userWithoutPassword } = userResponse;
-
     res.status(201).json({
       message: "Usuario registrado exitosamente",
-      user: userWithoutPassword,
+      user: data,
     });
   } catch (error) {
     res

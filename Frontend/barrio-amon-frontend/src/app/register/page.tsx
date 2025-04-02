@@ -9,7 +9,8 @@ import { AuthCard } from "@/components/auth/auth-card";
 import { FormInput } from "@/components/auth/form-input";
 import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 // Define validation schema with Zod
 const formSchema = z
@@ -34,6 +35,9 @@ export default function RegisterPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromUsers = searchParams.get("from") === "usuarios";
+  const supabase = createClient();
 
   // Initialize form with React Hook Form and Zod validation
   const form = useForm<z.infer<typeof formSchema>>({
@@ -52,13 +56,23 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
+      const { data, error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: {
+            full_name: values.fullName,
+          },
+        },
+      });
+
       const response = await fetch("http://localhost:3030/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fullName: values.fullName,
+          user_id: data.user?.id,
+          full_name: values.fullName,
           email: values.email,
-          password: values.password,
         }),
       });
 
@@ -69,8 +83,18 @@ export default function RegisterPage() {
         return;
       }
 
-      // Registro exitoso, redirigir al login
-      router.push("/login?registered=true");
+      if (error) {
+        setErrorMessage(error.message);
+        return;
+      }
+
+      // If coming from users page, redirect back there
+      if (fromUsers) {
+        router.push("/usuarios");
+      } else {
+        // Otherwise, redirect to login
+        router.push("/login?registered=true");
+      }
     } catch (error) {
       setErrorMessage("Error de conexión con el servidor");
     } finally {
@@ -111,10 +135,21 @@ export default function RegisterPage() {
 
           <div className="flex items-center pt-2">
             <div className="text-sm">
-              ¿Ya tienes una cuenta?{" "}
-              <Link href="/login" className="text-blue-500 hover:underline">
-                Inicia sesión
-              </Link>
+              {fromUsers ? (
+                <Link
+                  href="/usuarios"
+                  className="text-blue-500 hover:underline"
+                >
+                  Volver a usuarios
+                </Link>
+              ) : (
+                <>
+                  ¿Ya tienes una cuenta?{" "}
+                  <Link href="/login" className="text-blue-500 hover:underline">
+                    Inicia sesión
+                  </Link>
+                </>
+              )}
             </div>
           </div>
           <AuthSubmitButton label="Registrarse" />
