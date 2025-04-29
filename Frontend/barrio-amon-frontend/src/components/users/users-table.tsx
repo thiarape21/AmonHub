@@ -30,9 +30,9 @@ enum UserRole {
 }
 
 const RoleNames: Record<UserRole, string> = {
-  1: "Administrador",
-  2: "Miembro",
-  3: "Consultor",
+  [UserRole.ADMIN]: "Administrador",
+  [UserRole.MEMBER]: "Miembro",
+  [UserRole.CONSULTANT]: "Consultor",
 };
 
 interface User {
@@ -96,59 +96,89 @@ export function UsersTable({ initialUsers }: UsersTableProps) {
 
   console.log(users);
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Correo</TableHead>
-            <TableHead>Rol</TableHead>
-            <TableHead className="w-[100px]"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.map((user) => (
-            <TableRow key={user.id}>
-              <TableCell>{user.full_name}</TableCell>
-              <TableCell>{user.email}</TableCell>
-              <TableCell>
-                <Select
-                  defaultValue={user.role_id.toString()}
-                  onValueChange={(value) =>
-                    handleRoleChange(user.id, parseInt(value) as UserRole)
-                  }
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue>
-                      {RoleNames[user.role_id as UserRole]}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(RoleNames).map(([id, name]) => (
-                      <SelectItem key={id} value={id}>
-                        {name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </TableCell>
-              <TableCell>
-                <CustomButton
-                  variant="ghost"
-                  size="icon"
-                  className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                  onClick={() => handleDeleteUser(user.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </CustomButton>
-              </TableCell>
+    <div className="rounded-md border" style={{ backgroundColor: "#e6d9bd" }}>
+      <div className="overflow-hidden rounded-md mx-6 my-6">
+        <Table>
+          <TableHeader style={{ backgroundColor: "#4A6670" }}>
+            <TableRow>
+              <TableHead className="text-white font-medium h-12 w-1/3">
+                Nombre
+              </TableHead>
+              <TableHead className="text-white font-medium h-12 w-1/3">
+                Correo
+              </TableHead>
+              <TableHead className="text-white font-medium h-12 w-1/4">
+                Rol
+              </TableHead>
+              <TableHead className="text-white font-medium h-12 w-[100px]"></TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <div className="p-4 flex justify-end space-x-2">
+          </TableHeader>
+          <TableBody>
+            {users.map((user, index) => (
+              <TableRow
+                key={user.id}
+                style={{
+                  backgroundColor: index % 2 === 0 ? "#e2e8f0" : "#f1f5f9",
+                }}
+              >
+                <TableCell className="p-4">{user.full_name}</TableCell>
+                <TableCell className="p-4">{user.email}</TableCell>
+                <TableCell className="p-4">
+                  <Select
+                    defaultValue={user.role_id.toString()}
+                    onValueChange={(value) =>
+                      handleRoleChange(user.id, parseInt(value) as UserRole)
+                    }
+                  >
+                    <SelectTrigger className="w-[180px] bg-white border-gray-300">
+                      <SelectValue>
+                        {RoleNames[user.role_id as UserRole]}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(RoleNames).map(([id, name]) => (
+                        <SelectItem key={id} value={id}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell className="p-4">
+                  <CustomButton
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                    onClick={() => handleDeleteUser(user.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </CustomButton>
+                </TableCell>
+              </TableRow>
+            ))}
+            {/* Empty rows to match the design */}
+            {Array.from({ length: Math.max(0, 5 - users.length) }).map(
+              (_, index) => (
+                <TableRow
+                  key={`empty-${index}`}
+                  style={{
+                    backgroundColor:
+                      (users.length + index) % 2 === 0 ? "#e2e8f0" : "#f1f5f9",
+                  }}
+                >
+                  <TableCell className="p-4">&nbsp;</TableCell>
+                  <TableCell className="p-4">&nbsp;</TableCell>
+                  <TableCell className="p-4">&nbsp;</TableCell>
+                  <TableCell className="p-4">&nbsp;</TableCell>
+                </TableRow>
+              )
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="p-4 flex justify-end space-x-2 mr-6 mb-4">
         <Link href="/register?from=usuarios">
-          <CustomButton variant="outline">Agregar Usuario</CustomButton>
+          <CustomButton variant="outline">Agregar</CustomButton>
         </Link>
         <CustomButton>Guardar</CustomButton>
       </div>
