@@ -32,7 +32,17 @@ export default function LoginPage() {
     if (searchParams.get("registered") === "true") {
       setSuccessMessage("Registro exitoso. Por favor inicie sesión.");
     }
-  }, [searchParams]);
+
+    // Verificar si ya hay una sesión activa
+    async function checkSession() {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        router.push("/inicio"); // Redirigir al inicio si ya hay una sesión activa
+      }
+    }
+
+    checkSession();
+  }, [searchParams, supabase, router]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

@@ -44,23 +44,37 @@ export default function ObjetivosPage() {
 
   useEffect(() => {
     fetch("http://localhost:3030/api/objetivos")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`Error fetching objetivos: ${res.statusText}`);
+        return res.json();
+      })
       .then((data) => {
         if (Array.isArray(data)) setObjetivos(data);
         else setObjetivos([]);
-      });
+      })
+      .catch((error) => console.error("Failed to fetch objetivos:", error));
+
     fetch("http://localhost:3030/api/proyectos")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`Error fetching proyectos: ${res.statusText}`);
+        return res.json();
+      })
       .then((data) => {
         if (Array.isArray(data)) setProyectos(data);
         else setProyectos([]);
-      });
+      })
+      .catch((error) => console.error("Failed to fetch proyectos:", error));
+
     fetch("http://localhost:3030/api/usuarios")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`Error fetching usuarios: ${res.statusText}`);
+        return res.json();
+      })
       .then((data) => {
         if (Array.isArray(data)) setUsuarios(data);
         else setUsuarios([]);
-      });
+      })
+      .catch((error) => console.error("Failed to fetch usuarios:", error));
   }, []);
 
   const handleSave = async (e: React.FormEvent) => {
