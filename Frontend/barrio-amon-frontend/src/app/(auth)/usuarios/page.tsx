@@ -1,4 +1,4 @@
-import { UsersTable } from "@/components/users/users-table";
+  import { UsersTable } from "@/components/users/users-table";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { CustomButton } from "@/components/ui/custom-button";
@@ -37,9 +37,9 @@ export default async function UsersPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold text-slate-800">
-              Usuarios y Roles
+              Usuarios y roles
             </h1>
-            <p className="text-slate-600">Gestión de Usuarios y Roles</p>
+            <p className="text-slate-600">Gestión de usuarios y roles</p>
           </div>
           <Link href="/inicio">
             <CustomButton variant="outline" size="sm">
