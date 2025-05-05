@@ -50,6 +50,8 @@ export default function RegisterPage() {
     },
   });
 
+  const cardTitle = fromUsers ? "Registrar un nuevo usuario" : "Registrarse";
+
   // Form submission handler
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setErrorMessage(null);
@@ -103,7 +105,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <AuthCard title="Registrarse">
+    <AuthCard title={cardTitle}>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormInput
@@ -152,7 +154,11 @@ export default function RegisterPage() {
               )}
             </div>
           </div>
-          <AuthSubmitButton label="Registrarse" />
+          {fromUsers ? (
+            <AuthSubmitButton label="Registrar usuario" />
+          ) : (
+            <AuthSubmitButton label="Registrarse" />
+          )}
         </form>
       </Form>
     </AuthCard>
