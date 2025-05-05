@@ -186,4 +186,40 @@ router.delete("/usuarios/:id", async (req, res) => {
   }
 });
 
+// CRUD Proyectos
+router.get("/proyectos", async (req, res) => {
+  const { data, error } = await supabase.from("proyectos").select("*");
+  if (error) return res.status(400).json({ error: error.message });
+  res.json(data);
+});
+
+router.get("/proyectos/:id", async (req, res) => {
+  const { id } = req.params;
+  const { data, error } = await supabase.from("proyectos").select("*").eq("id", id).single();
+  if (error) return res.status(404).json({ error: error.message });
+  res.json(data);
+});
+
+router.post("/proyectos", async (req, res) => {
+  const proyecto = req.body;
+  const { data, error } = await supabase.from("proyectos").insert([proyecto]).select("*").single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.status(201).json(data);
+});
+
+router.put("/proyectos/:id", async (req, res) => {
+  const { id } = req.params;
+  const proyecto = req.body;
+  const { data, error } = await supabase.from("proyectos").update(proyecto).eq("id", id).select("*").single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.json(data);
+});
+
+router.delete("/proyectos/:id", async (req, res) => {
+  const { id } = req.params;
+  const { error } = await supabase.from("proyectos").delete().eq("id", id);
+  if (error) return res.status(400).json({ error: error.message });
+  res.status(204).send();
+});
+
 export default router;
