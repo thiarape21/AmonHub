@@ -16,6 +16,14 @@ export interface Proyecto {
   evidencias?: string;
   alertas?: string;
   tareas?: any[];
+  objetivosSmart?: ObjetivoSmart[];
+  pdfs?: File[];
+}
+
+interface ObjetivoSmart {
+  nombre: string;
+  descripcion: string;
+  cumplida: boolean;
 }
 
 export default function ProyectoForm({
@@ -41,6 +49,8 @@ export default function ProyectoForm({
     evidencias: proyecto.evidencias || "",
     alertas: proyecto.alertas || "",
     tareas: proyecto.tareas || [],
+    objetivosSmart: proyecto.objetivosSmart || [],
+    pdfs: proyecto.pdfs || [],
   });
   const [loading, setLoading] = useState(false);
   const [objetivos, setObjetivos] = useState<{ id: string; nombre: string }[]>([]);
@@ -48,6 +58,9 @@ export default function ProyectoForm({
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevoDescripcion, setNuevoDescripcion] = useState("");
   const [usuarios, setUsuarios] = useState<{ id: string; full_name: string }[]>([]);
+  const [objetivosSmart, setObjetivosSmart] = useState<ObjetivoSmart[]>(proyecto.objetivosSmart || []);
+  const [nuevoSmart, setNuevoSmart] = useState<{ nombre: string; descripcion: string }>({ nombre: "", descripcion: "" });
+  const [pdfs, setPdfs] = useState<File[]>([]);
 
   useEffect(() => {
     fetch("http://localhost:3030/api/objetivos")
@@ -71,6 +84,7 @@ export default function ProyectoForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const proyectoAEnviar = { ...form, objetivosSmart, pdfs };
     const url = modo === "crear"
       ? "http://localhost:3030/api/proyectos"
       : `http://localhost:3030/api/proyectos/${proyecto.id}`;
@@ -78,7 +92,7 @@ export default function ProyectoForm({
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(proyectoAEnviar),
     });
     setLoading(false);
     if (res.ok && onSave) {
@@ -129,6 +143,27 @@ export default function ProyectoForm({
     });
   };
 
+  const handleAddSmart = () => {
+    if (nuevoSmart.nombre.trim() && nuevoSmart.descripcion.trim()) {
+      setObjetivosSmart([...objetivosSmart, { ...nuevoSmart, cumplida: false }]);
+      setNuevoSmart({ nombre: "", descripcion: "" });
+    }
+  };
+  const handleRemoveSmart = (idx: number) => {
+    setObjetivosSmart(objetivosSmart.filter((_, i) => i !== idx));
+  };
+  const handleCheckSmart = (idx: number) => {
+    setObjetivosSmart(objetivosSmart.map((o, i) => i === idx ? { ...o, cumplida: !o.cumplida } : o));
+  };
+  const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setPdfs([...pdfs, ...Array.from(e.target.files)]);
+    }
+  };
+  const handleRemovePdf = (idx: number) => {
+    setPdfs(pdfs.filter((_, i) => i !== idx));
+  };
+
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">
       <div>
@@ -161,6 +196,33 @@ export default function ProyectoForm({
             Crear nuevo objetivo
           </CustomButton>
         </div>
+      </div>
+      <div>
+        <label className="block font-semibold">Objetivos Específicos del Proyecto (SMART)</label>
+        <div className="mb-2 flex gap-2">
+          <input
+            className="border rounded p-2 flex-1"
+            placeholder="Nombre del objetivo SMART"
+            value={nuevoSmart.nombre}
+            onChange={e => setNuevoSmart({ ...nuevoSmart, nombre: e.target.value })}
+          />
+          <input
+            className="border rounded p-2 flex-1"
+            placeholder="Descripción SMART"
+            value={nuevoSmart.descripcion}
+            onChange={e => setNuevoSmart({ ...nuevoSmart, descripcion: e.target.value })}
+          />
+          <CustomButton type="button" onClick={handleAddSmart}>Agregar</CustomButton>
+        </div>
+        <ul className="mb-2">
+          {objetivosSmart.map((o, idx) => (
+            <li key={idx} className="flex items-center gap-2 mb-1">
+              <input type="checkbox" checked={o.cumplida} onChange={() => handleCheckSmart(idx)} />
+              <span className={o.cumplida ? "line-through" : ""}>{o.nombre}: {o.descripcion}</span>
+              <button type="button" className="text-red-500" onClick={() => handleRemoveSmart(idx)}>Eliminar</button>
+            </li>
+          ))}
+        </ul>
       </div>
       <div>
         <label className="block font-semibold">Responsable</label>
@@ -219,12 +281,22 @@ export default function ProyectoForm({
           <input type="date" name="fecha_fin" value={form.fecha_fin} onChange={handleChange} className="w-full border rounded p-2" />
         </div>
       </div>
-      {/* Puedes agregar campos para evidencias, alertas y tareas aquí si lo deseas */}
+      <div>
+        <label className="block font-semibold">Evidencias (PDFs)</label>
+        <input type="file" accept="application/pdf" multiple onChange={handlePdfChange} />
+        <ul className="mt-2">
+          {pdfs.map((file, idx) => (
+            <li key={idx} className="flex items-center gap-2">
+              <span>{file.name}</span>
+              <button type="button" className="text-red-500" onClick={() => handleRemovePdf(idx)}>Eliminar</button>
+            </li>
+          ))}
+        </ul>
+      </div>
       <div className="flex justify-end gap-2 mt-6">
         <CustomButton type="button" variant="outline" onClick={onCancel}>Atrás</CustomButton>
         <CustomButton type="submit" disabled={loading}>{modo === "crear" ? "Crear" : "Guardar"}</CustomButton>
       </div>
-      {/* Modal para crear objetivo */}
       {showObjetivoForm && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <form onSubmit={handleCrearObjetivo} className="bg-white p-6 rounded shadow-lg w-full max-w-md">

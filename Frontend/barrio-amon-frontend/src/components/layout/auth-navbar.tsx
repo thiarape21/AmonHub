@@ -40,12 +40,20 @@ export function AuthNavbar() {
               Objetivos
             </Link>
             <NavDivider />
-            <Link href="/proyectos" className={
+            <Link href="/proyectos/lista" className={
               (typeof window !== 'undefined' && window.location.pathname.startsWith('/proyectos'))
                 ? "hover:text-gray-300 px-3 text-[#FFB300] font-bold"
                 : "hover:text-gray-300 px-3"
             }>
               Proyectos
+            </Link>
+            <NavDivider />
+            <Link href="/monitoreo" className={
+              (typeof window !== 'undefined' && window.location.pathname.startsWith('/monitoreo'))
+                ? "hover:text-gray-300 px-3 text-[#FFB300] font-bold"
+                : "hover:text-gray-300 px-3"
+            }>
+              Monitoreo
             </Link>
             <NavDivider />
             <Link href="/usuarios" className="hover:text-gray-300 px-3">

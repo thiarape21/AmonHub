@@ -1,0 +1,434 @@
+"use client";
+import { useEffect, useState } from "react";
+import { CustomButton } from "@/components/ui/custom-button";
+
+interface Objetivo {
+  id?: string;
+  nombre: string;
+  descripcion: string;
+  tipo?: string; // 'estrategico' | 'operativo'
+  foda?: Foda;
+  responsable?: string;
+  colaboradores?: string;
+  metas?: Meta[]; // Solo para planes operativos
+  tareas?: Tarea[]; // Solo para planes operativos
+}
+
+interface Meta {
+  id?: string;
+  nombre: string;
+  cumplida: boolean;
+  actividades?: string[];
+  // Las metas son SMART y tienen plazo de 1 año
+}
+
+interface Tarea {
+  id?: string;
+  nombre: string;
+  cumplida: boolean;
+}
+
+interface Foda {
+  fortalezas: string[];
+  oportunidades: string[];
+  debilidades: string[];
+  amenazas: string[];
+}
+
+export default function ObjetivosPage() {
+  const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editObjetivo, setEditObjetivo] = useState<Objetivo | null>(null);
+  const [nombre, setNombre] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [tipo, setTipo] = useState<string>("");
+  const [foda, setFoda] = useState<Foda>({
+    fortalezas: [],
+    oportunidades: [],
+    debilidades: [],
+    amenazas: []
+  });
+  const [responsable, setResponsable] = useState("");
+  const [colaboradores, setColaboradores] = useState("");
+  const [metas, setMetas] = useState<Meta[]>([]);
+  const [tareas, setTareas] = useState<Tarea[]>([]);
+  const [usuarios, setUsuarios] = useState<{ id: string; full_name: string }[]>([]);
+
+  useEffect(() => {
+    fetch("http://localhost:3030/api/objetivos")
+      .then((res) => {
+        if (!res.ok) throw new Error(`Error fetching objetivos: ${res.statusText}`);
+        return res.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data)) setObjetivos(data);
+        else setObjetivos([]);
+      })
+      .catch((error) => console.error("Failed to fetch objetivos:", error));
+
+    fetch("http://localhost:3030/api/usuarios")
+      .then((res) => {
+        if (!res.ok) throw new Error(`Error fetching usuarios: ${res.statusText}`);
+        return res.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data)) setUsuarios(data);
+        else setUsuarios([]);
+      })
+      .catch((error) => console.error("Failed to fetch usuarios:", error));
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const objetivo: Objetivo = {
+      nombre,
+      descripcion,
+      tipo,
+      foda,
+      responsable,
+      colaboradores,
+      metas: tipo === "operativo" ? metas : [],
+      tareas: tipo === "operativo" ? tareas : [],
+    };
+    let url = "http://localhost:3030/api/objetivos";
+    let method = "POST";
+    if (editObjetivo) {
+      url += `/${editObjetivo.id}`;
+      method = "PUT";
+    }
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(objetivo),
+    });
+    if (res.ok) {
+      setShowForm(false);
+      setEditObjetivo(null);
+      setNombre("");
+      setDescripcion("");
+      setTipo("");
+      setFoda({ fortalezas: [], oportunidades: [], debilidades: [], amenazas: [] });
+      setResponsable("");
+      setColaboradores("");
+      setMetas([]);
+      setTareas([]);
+      // Refrescar lista
+      fetch("http://localhost:3030/api/objetivos")
+        .then((res) => res.json())
+        .then((data) => Array.isArray(data) && setObjetivos(data));
+    }
+  };
+
+  const handleEdit = (objetivo: Objetivo) => {
+    setEditObjetivo(objetivo);
+    setNombre(objetivo.nombre);
+    setDescripcion(objetivo.descripcion);
+    setTipo(objetivo.tipo || "");
+    let fodaValue: Foda = { fortalezas: [], oportunidades: [], debilidades: [], amenazas: [] };
+    if (typeof objetivo.foda === 'string') {
+      try {
+        fodaValue = JSON.parse(objetivo.foda);
+      } catch {}
+    } else if (objetivo.foda) {
+      fodaValue = objetivo.foda;
+    }
+    setFoda(fodaValue);
+    setResponsable(objetivo.responsable || "");
+    setColaboradores(objetivo.colaboradores || "");
+    setMetas(objetivo.metas || []);
+    setTareas(objetivo.tareas || []);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id?: string) => {
+    if (!id) return;
+    if (!confirm("¿Seguro que deseas eliminar este objetivo?")) return;
+    await fetch(`http://localhost:3030/api/objetivos/${id}`, { method: "DELETE" });
+    setObjetivos(objetivos.filter((o) => o.id !== id));
+  };
+
+  // Utilidad para manejar colaboradores como array
+  const colaboradoresArray = colaboradores ? colaboradores.split(",") : [];
+  // Si el responsable está en colaboradores, lo quitamos automáticamente
+  useEffect(() => {
+    if (responsable && colaboradoresArray.includes(responsable)) {
+      setColaboradores(colaboradoresArray.filter((c) => c !== responsable).join(","));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [responsable]);
+  const handleAddColaborador = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (value && !colaboradoresArray.includes(value)) {
+      setColaboradores([...colaboradoresArray, value].join(","));
+    }
+  };
+  const handleRemoveColaborador = (name: string) => {
+    setColaboradores(colaboradoresArray.filter((c) => c !== name).join(","));
+  };
+
+  return (
+    <div className="container mx-auto py-8">
+      <h1 className="text-4xl font-bold text-center mb-6 text-[#546b75]">OBJETIVOS ESTRATÉGICOS</h1>
+      <div className="flex justify-end mb-4">
+        <CustomButton onClick={() => { setShowForm(true); setEditObjetivo(null); setNombre(""); setDescripcion(""); setTipo(""); setFoda({ fortalezas: [], oportunidades: [], debilidades: [], amenazas: [] }); setResponsable(""); setColaboradores(""); setMetas([]); setTareas([]); }}>Crear Objetivo</CustomButton>
+      </div>
+      <div className="overflow-x-auto rounded-lg shadow">
+        <table className="min-w-full bg-white">
+          <thead className="bg-[#4A6670] text-white">
+            <tr>
+              <th className="py-2 px-4">Nombre</th>
+              <th className="py-2 px-4">Descripción</th>
+              <th className="py-2 px-4">Tipo</th>
+              <th className="py-2 px-4">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {objetivos.map((objetivo) => (
+              <tr key={objetivo.id} className="border-b">
+                <td className="py-2 px-4">{objetivo.nombre}</td>
+                <td className="py-2 px-4">{objetivo.descripcion}</td>
+                <td className="py-2 px-4">{objetivo.tipo === "estrategico" ? "Estratégico (10 años)" : "Plan Operativo (1 año)"}</td>
+                <td className="py-2 px-4 space-x-2">
+                  <CustomButton size="sm" variant="outline" onClick={() => handleEdit(objetivo)}>Editar</CustomButton>
+                  <CustomButton size="sm" variant="destructive" onClick={() => handleDelete(objetivo.id)}>Eliminar</CustomButton>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {/* Modal/Formulario */}
+      {showForm && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-white/30 backdrop-blur-sm">
+          <form onSubmit={handleSave} className="bg-white p-6 rounded shadow-lg w-full max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-4 md:col-span-2">{editObjetivo ? "Editar Objetivo" : "Crear Objetivo"}</h2>
+            <div className="mb-4 md:col-span-2">
+              <label className="block font-semibold mb-1">Tipo de objetivo</label>
+              <select
+                className="w-full border rounded p-2"
+                value={tipo}
+                onChange={e => setTipo(e.target.value)}
+                required
+              >
+                <option value="">Selecciona el tipo de objetivo</option>
+                <option value="estrategico">Estratégico (largo plazo, 10 años)</option>
+                <option value="operativo">Plan Operativo (corto plazo, 1 año)</option>
+              </select>
+            </div>
+            <div className="mb-4">
+              <label className="block font-semibold mb-1">Nombre</label>
+              <input className="w-full border rounded p-2" value={nombre} onChange={e => setNombre(e.target.value)} required />
+            </div>
+            <div className="mb-4">
+              <label className="block font-semibold mb-1">Descripción</label>
+              <textarea className="w-full border rounded p-2" value={descripcion} onChange={e => setDescripcion(e.target.value)} required />
+            </div>
+            <div className="mb-4 md:col-span-2">
+              <label className="block font-semibold mb-1">FODA</label>
+              <FodaManager foda={foda} setFoda={setFoda} />
+            </div>
+            <div className="mb-4">
+              <label className="block font-semibold mb-1">Responsable</label>
+              <select
+                className="w-full border rounded p-2"
+                value={responsable}
+                onChange={e => setResponsable(e.target.value)}
+              >
+                <option value="">Selecciona un responsable</option>
+                {usuarios.map((u) => (
+                  <option key={u.id} value={u.full_name}>{u.full_name}</option>
+                ))}
+              </select>
+              <div className="text-xs text-gray-500">Solo puede haber un responsable por objetivo.</div>
+            </div>
+            <div className="mb-4">
+              <label className="block font-semibold mb-1">Colaboradores</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {colaboradoresArray.map((colab) => (
+                  <span key={colab} className="bg-blue-100 text-blue-800 px-2 py-1 rounded flex items-center gap-1">
+                    {colab}
+                    <button type="button" className="ml-1 text-red-500 hover:text-red-700" onClick={() => handleRemoveColaborador(colab)}>
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <select
+                className="w-full border rounded p-2"
+                value=""
+                onChange={handleAddColaborador}
+              >
+                <option value="">Agregar colaborador...</option>
+                {usuarios.filter(u => u.full_name !== responsable && !colaboradoresArray.includes(u.full_name)).map((u) => (
+                  <option key={u.id} value={u.full_name}>{u.full_name}</option>
+                ))}
+              </select>
+              <div className="text-xs text-gray-500">Selecciona uno o varios colaboradores registrados.</div>
+            </div>
+            {/* Solo mostrar metas si es plan operativo */}
+            {tipo === "operativo" && (
+              <div className="mb-4 md:col-span-2">
+                <label className="block font-semibold mb-1">Metas SMART (1 año)</label>
+                <div className="text-xs text-gray-500 mb-2">
+                  Las metas deben ser: Específicas, Medibles, Alcanzables, Relevantes y con plazo de 1 año
+                </div>
+                <MetaManager metas={metas} setMetas={setMetas} />
+              </div>
+            )}
+            <div className="flex justify-end gap-2 md:col-span-2">
+              <CustomButton type="button" variant="outline" onClick={() => setShowForm(false)}>Cancelar</CustomButton>
+              <CustomButton type="submit">{editObjetivo ? "Guardar" : "Crear"}</CustomButton>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MetaManager({ metas, setMetas }: { metas: Meta[]; setMetas: (m: Meta[]) => void }) {
+  const [nuevaMeta, setNuevaMeta] = useState("");
+  const [nuevaActividad, setNuevaActividad] = useState("");
+
+  const handleAddMeta = () => {
+    if (nuevaMeta.trim()) {
+      setMetas([...metas, { nombre: nuevaMeta.trim(), cumplida: false }]);
+      setNuevaMeta("");
+    }
+  };
+
+  const handleCheckMeta = (idx: number) => {
+    const nuevasMetas = [...metas];
+    nuevasMetas[idx].cumplida = !nuevasMetas[idx].cumplida;
+    setMetas(nuevasMetas);
+  };
+
+  const handleRemoveMeta = (idx: number) => {
+    setMetas(metas.filter((_, i) => i !== idx));
+  };
+
+  const handleAddActividad = () => {
+    if (nuevaActividad.trim() && metas.length > 0) {
+      const ultimaMeta = metas[metas.length - 1];
+      const nuevasMetas = [...metas];
+      nuevasMetas[metas.length - 1] = {
+        ...ultimaMeta,
+        actividades: [...(ultimaMeta.actividades || []), nuevaActividad.trim()]
+      };
+      setMetas(nuevasMetas);
+      setNuevaActividad("");
+    }
+  };
+
+  return (
+    <div>
+      <ul className="mb-2">
+        {metas.map((meta, idx) => (
+          <li key={idx} className="flex items-center gap-2 mb-1">
+            <input type="checkbox" checked={meta.cumplida} onChange={() => handleCheckMeta(idx)} />
+            <span className={meta.cumplida ? "line-through" : ""}>{meta.nombre}</span>
+            <button type="button" className="text-red-500" onClick={() => handleRemoveMeta(idx)}>Eliminar</button>
+            {/* Actividades de la meta */}
+            <ul className="ml-4">
+              {meta.actividades && meta.actividades.map((act, aidx) => (
+                <li key={aidx} className="text-xs flex items-center gap-1">
+                  - {act}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+      <div className="flex gap-2 mb-2">
+        <input
+          className="border rounded p-1 flex-1"
+          placeholder="Nueva meta SMART"
+          value={nuevaMeta}
+          onChange={e => setNuevaMeta(e.target.value)}
+        />
+        <button type="button" className="bg-blue-500 text-white px-2 rounded" onClick={handleAddMeta}>Agregar meta</button>
+      </div>
+      {/* Agregar actividades a la meta que se está creando */}
+      <div className="flex gap-2 mb-2">
+        <input
+          className="border rounded p-1 flex-1"
+          placeholder="Actividad para la nueva meta"
+          value={nuevaActividad}
+          onChange={e => setNuevaActividad(e.target.value)}
+        />
+        <button type="button" className="bg-green-500 text-white px-2 rounded" onClick={handleAddActividad}>Agregar actividad</button>
+      </div>
+    </div>
+  );
+}
+
+function FodaManager({ foda, setFoda }: { foda: Foda; setFoda: (f: Foda) => void }) {
+  const apartados: { key: keyof Foda; label: string }[] = [
+    { key: 'fortalezas', label: 'Fortalezas' },
+    { key: 'oportunidades', label: 'Oportunidades' },
+    { key: 'debilidades', label: 'Debilidades' },
+    { key: 'amenazas', label: 'Amenazas' },
+  ];
+
+  // Estado local para los inputs de cada apartado
+  const [inputs, setInputs] = useState<{ [K in keyof Foda]: string }>({
+    fortalezas: '',
+    oportunidades: '',
+    debilidades: '',
+    amenazas: ''
+  });
+
+  const handleInputChange = (key: keyof Foda, value: string) => {
+    setInputs({ ...inputs, [key]: value });
+  };
+
+  const handleAdd = (key: keyof Foda) => {
+    const valor = inputs[key].trim();
+    if (valor) {
+      setFoda({ ...foda, [key]: [...foda[key], valor] });
+      setInputs({ ...inputs, [key]: '' });
+    }
+  };
+
+  const handleRemove = (key: keyof Foda, idx: number) => {
+    setFoda({ ...foda, [key]: foda[key].filter((_: string, i: number) => i !== idx) });
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {apartados.map(({ key, label }) => (
+        <div key={key} className="bg-gray-50 p-3 rounded">
+          <div className="font-semibold mb-2">{label}</div>
+          <div className="flex gap-2 mb-2">
+            <input
+              type="text"
+              className="flex-1 border rounded p-2"
+              placeholder={`Agregar ${label.toLowerCase()}`}
+              value={inputs[key]}
+              onChange={e => handleInputChange(key, e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(key); } }}
+            />
+            <button
+              type="button"
+              className="bg-blue-500 text-white px-3 py-1 rounded"
+              onClick={() => handleAdd(key)}
+            >
+              Agregar
+            </button>
+          </div>
+          <ul className="space-y-1">
+            {foda[key].length === 0 && <li className="text-gray-400 italic">Sin {label.toLowerCase()}</li>}
+            {foda[key].map((item: string, idx: number) => (
+              <li key={idx} className="flex items-center gap-2">
+                <span className="flex-1">{item}</span>
+                <button type="button" className="text-red-500" onClick={() => handleRemove(key, idx)}>
+                  Eliminar
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+} 
