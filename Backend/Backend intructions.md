@@ -1,1 +1,1 @@
-npm install express cors dotenv @supabase/supabase-js
+npm install express cors dotenv @supabase/supabase-js express-fileupload
