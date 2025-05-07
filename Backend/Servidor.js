@@ -18,6 +18,15 @@ async function testDBConnection() {
     console.log("✅ Conexión exitosa. Datos obtenidos:");
     console.log(data);
   }
+
+  const { data2, error2 } = await supabase.from("AnalisisFoda").select("*"); // ✅ Corrección: minúsculas
+
+  if (error2) {
+    console.error("Error al conectar con la base de datos:", error2.message);
+  } else {
+    console.log("✅ Conexión exitosa. Datos obtenidos:");
+    console.log(data2);
+  }
 }
 
 testDBConnection();

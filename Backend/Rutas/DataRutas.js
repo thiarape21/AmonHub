@@ -3,6 +3,12 @@ import { supabase, supabaseAdmin } from "../Configuracion/Supabase.js";
 
 const router = express.Router();
 
+router.get("/analisis-foda", async (req, res) => {
+  const { data, error } = await supabase.from("AnalisisFoda").select("*");
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
 router.get("/datos", async (req, res) => {
   const { data, error } = await supabase.from("Usuarios").select("*");
   if (error) return res.status(400).json({ error: error.message });
@@ -221,5 +227,106 @@ router.delete("/proyectos/:id", async (req, res) => {
   if (error) return res.status(400).json({ error: error.message });
   res.status(204).send();
 });
+
+// Obtener todos los elementos FODA
+router.get("/analisis-foda", async (req, res) => {
+  try {
+    const { data, error } = await supabase.from("AnalisisFoda").select("*");
+
+    if (error) {
+      return res.status(500).json({ message: "Error al obtener análisis FODA", error: error.message });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
+  }
+});
+
+// Obtener un solo elemento FODA por ID
+router.get("/analisis-foda/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data, error } = await supabase
+      .from("AnalisisFoda")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      return res.status(404).json({ message: "Elemento FODA no encontrado", error: error.message });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
+  }
+});
+
+// Crear un nuevo elemento FODA
+router.post("/analisis-foda", async (req, res) => {
+  const { texto, tipo, dimension, meta } = req.body;
+
+  if (!texto || !tipo || !dimension) {
+    return res.status(400).json({ message: "Faltan campos requeridos." });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("AnalisisFoda")
+      .insert([{ texto, tipo, dimension, meta }])
+      .select("*")
+      .single();
+
+    if (error) {
+      return res.status(400).json({ message: "Error al crear elemento FODA", error: error.message });
+    }
+
+    res.status(201).json(data);
+  } catch (error) {
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
+  }
+});
+
+// Actualizar un elemento FODA
+router.put("/analisis-foda/:id", async (req, res) => {
+  const { id } = req.params;
+  const { texto, tipo, dimension, meta } = req.body;
+
+  try {
+    const { data, error } = await supabase
+      .from("AnalisisFoda")
+      .update({ texto, tipo, dimension, meta })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (error) {
+      return res.status(400).json({ message: "Error al actualizar elemento FODA", error: error.message });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
+  }
+});
+
+// Eliminar un elemento FODA
+router.delete("/analisis-foda/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const { error } = await supabase.from("AnalisisFoda").delete().eq("id", id);
+
+    if (error) {
+      return res.status(400).json({ message: "Error al eliminar elemento FODA", error: error.message });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
+  }
+});
+
 
 export default router;

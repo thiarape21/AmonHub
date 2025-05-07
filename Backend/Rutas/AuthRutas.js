@@ -78,6 +78,9 @@ router.post("/register", async (req, res) => {
   }
 });
 
+
+
+
 router.get("/usuarios", async (req, res) => {
   try {
     const { data, error } = await supabase.from("Usuarios").select("*");
@@ -94,6 +97,43 @@ router.get("/usuarios", async (req, res) => {
       .status(500)
       .json({ message: "Error en el servidor", error: error.message });
   }
+});
+
+router.get("/analisis-foda", async (req, res) => {
+  try {
+    const { data, error } = await supabase.from("AnalisisFoda").select("*");
+
+    if (error) {
+      return res
+        .status(500)
+        .json({ message: "Error al obtener análisis FODA", error: error.message });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error en el servidor", error: error.message });
+  }
+});
+
+router.post("/analisis-foda", async (req, res) => {
+  const { texto, tipo, dimension, meta } = req.body;
+
+  // Validación mínima
+  if (!texto || !tipo || !dimension) {
+    return res.status(400).json({ message: "Faltan campos requeridos." });
+  }
+
+  const { error } = await supabase.from("AnalisisFoda").insert([
+    { texto, tipo, dimension, meta }
+  ]);
+
+  if (error) {
+    return res.status(500).json({ message: "Error al crear FODA", error: error.message });
+  }
+
+  res.status(201).json({ message: "Elemento FODA creado correctamente" });
 });
 
 export default router;

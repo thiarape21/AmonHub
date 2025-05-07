@@ -7,118 +7,51 @@ interface FodaElement {
   texto: string;
   tipo: 'fortaleza' | 'oportunidad' | 'debilidad' | 'amenaza';
   dimension: string;
-  meca?: 'mantener' | 'explotar' | 'corregir' | 'afrontar';
+  meta?: 'mantener' | 'explotar' | 'corregir' | 'afrontar' | null;
 }
 
-// Datos de ejemplo que vendrían de la API
-const elementosFodaEjemplo: FodaElement[] = [
-  // Fortalezas
-  {
-    id: "f1",
-    texto: "Patrimonio histórico bien conservado",
-    tipo: "fortaleza",
-    dimension: "Patrimonio"
-  },
-  {
-    id: "f2",
-    texto: "Ubicación céntrica y accesible",
-    tipo: "fortaleza",
-    dimension: "Ubicación"
-  },
-  {
-    id: "f3",
-    texto: "Comunidad organizada y participativa",
-    tipo: "fortaleza",
-    dimension: "Comunidad"
-  },
-  {
-    id: "f4",
-    texto: "Recursos municipales disponibles",
-    tipo: "fortaleza",
-    dimension: "Recursos"
-  },
+// === Funciones para interactuar con API ===
 
-  // Oportunidades
-  {
-    id: "o1",
-    texto: "Potencial turístico cultural",
-    tipo: "oportunidad",
-    dimension: "Turismo"
-  },
-  {
-    id: "o2",
-    texto: "Fondos de desarrollo urbano disponibles",
-    tipo: "oportunidad",
-    dimension: "Recursos"
-  },
-  {
-    id: "o3",
-    texto: "Interés de inversores en el área",
-    tipo: "oportunidad",
-    dimension: "Inversión"
-  },
-  {
-    id: "o4",
-    texto: "Programas de conservación patrimonial",
-    tipo: "oportunidad",
-    dimension: "Patrimonio"
-  },
+async function getFoda(): Promise<FodaElement[]> {
+  const res = await fetch("http://localhost:3030/api/analisis-foda", { cache: "no-store" });
+  if (!res.ok) throw new Error("No se pudieron obtener los elementos FODA");
+  return res.json();
+}
 
-  // Debilidades
-  {
-    id: "d1",
-    texto: "Infraestructura envejecida",
-    tipo: "debilidad",
-    dimension: "Infraestructura"
-  },
-  {
-    id: "d2",
-    texto: "Falta de espacios verdes",
-    tipo: "debilidad",
-    dimension: "Espacios Públicos"
-  },
-  {
-    id: "d3",
-    texto: "Limitaciones presupuestarias",
-    tipo: "debilidad",
-    dimension: "Recursos"
-  },
-  {
-    id: "d4",
-    texto: "Procesos burocráticos lentos",
-    tipo: "debilidad",
-    dimension: "Gestión"
-  },
+async function createFoda(elemento: Omit<FodaElement, "id">): Promise<void> {
+  const res = await fetch("http://localhost:3030/api/analisis-foda", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(elemento),
+  });
+  if (!res.ok) throw new Error("Error al crear el elemento FODA");
+}
 
-  // Amenazas
-  {
-    id: "a1",
-    texto: "Gentrificación del barrio",
-    tipo: "amenaza",
-    dimension: "Desarrollo"
-  },
-  {
-    id: "a2",
-    texto: "Cambio climático y eventos extremos",
-    tipo: "amenaza",
-    dimension: "Clima"
-  },
-  {
-    id: "a3",
-    texto: "Cambios en políticas municipales",
-    tipo: "amenaza",
-    dimension: "Gestión"
-  },
-  {
-    id: "a4",
-    texto: "Competencia de otros barrios históricos",
-    tipo: "amenaza",
-    dimension: "Turismo"
-  }
+async function updateFoda(id: string, elemento: Omit<FodaElement, "id">): Promise<void> {
+  const res = await fetch(`http://localhost:3030/api/analisis-foda/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(elemento),
+  });
+  if (!res.ok) throw new Error("Error al actualizar el elemento FODA");
+}
+
+async function deleteFoda(id: string): Promise<void> {
+  const res = await fetch(`http://localhost:3030/api/analisis-foda/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Error al eliminar el elemento FODA");
+}
+
+// === Dimensiones base por defecto ===
+const dimensionesBase = [
+  "Patrimonio", "Ubicación", "Comunidad", "Recursos", "Turismo",
+  "Inversión", "Infraestructura", "Espacios Públicos", "Gestión", "Desarrollo", "Clima"
 ];
 
+// === Componente principal ===
 export default function FodaPage() {
-  const [elementos, setElementos] = useState<FodaElement[]>(elementosFodaEjemplo);
+  const [elementos, setElementos] = useState<FodaElement[]>([]);
   const [dimensiones, setDimensiones] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editElemento, setEditElemento] = useState<FodaElement | null>(null);
@@ -129,33 +62,49 @@ export default function FodaPage() {
   });
 
   useEffect(() => {
-    // Extraer dimensiones únicas
-    const dims = [...new Set(elementos.map(e => e.dimension))];
+    async function fetchData() {
+      try {
+        const data = await getFoda();
+        setElementos(data);
+      } catch (error) {
+        console.error("Error al cargar análisis FODA:", error);
+      }
+    }
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const dinamicas = elementos.map(e => e.dimension);
+    const dims = [...new Set([...dimensionesBase, ...dinamicas])];
     setDimensiones(dims);
   }, [elementos]);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nuevoElemento.texto || !nuevoElemento.tipo || !nuevoElemento.dimension) return;
 
-    if (editElemento) {
-      setElementos(elementos.map(e => 
-        e.id === editElemento.id 
-          ? { ...e, ...nuevoElemento, id: e.id }
-          : e
-      ));
-    } else {
-      setElementos([...elementos, {
-        id: `${nuevoElemento.tipo[0]}${elementos.length + 1}`,
-        texto: nuevoElemento.texto,
+    try {
+      const elemento = {
+        texto: nuevoElemento.texto!,
         tipo: nuevoElemento.tipo as FodaElement['tipo'],
-        dimension: nuevoElemento.dimension
-      }]);
-    }
+        dimension: nuevoElemento.dimension!,
+        meta: nuevoElemento.meta ?? null,
+      };
 
-    setShowForm(false);
-    setEditElemento(null);
-    setNuevoElemento({ texto: "", tipo: "fortaleza", dimension: "" });
+      if (editElemento) {
+        await updateFoda(editElemento.id, elemento);
+      } else {
+        await createFoda(elemento);
+      }
+
+      const updated = await getFoda();
+      setElementos(updated);
+      setShowForm(false);
+      setEditElemento(null);
+      setNuevoElemento({ texto: "", tipo: "fortaleza", dimension: "" });
+    } catch (err) {
+      console.error("Error al guardar elemento FODA:", err);
+    }
   };
 
   const handleEdit = (elemento: FodaElement) => {
@@ -163,14 +112,21 @@ export default function FodaPage() {
     setNuevoElemento({
       texto: elemento.texto,
       tipo: elemento.tipo,
-      dimension: elemento.dimension
+      dimension: elemento.dimension,
+      meta: elemento.meta ?? undefined,
     });
     setShowForm(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm("¿Seguro que deseas eliminar este elemento?")) return;
-    setElementos(elementos.filter(e => e.id !== id));
+    try {
+      await deleteFoda(id);
+      const updated = await getFoda();
+      setElementos(updated);
+    } catch (err) {
+      console.error("Error al eliminar elemento FODA:", err);
+    }
   };
 
   return (
@@ -199,137 +155,34 @@ export default function FodaPage() {
 
       {/* Matriz FODA */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Fortalezas */}
-        <div className="bg-green-50 p-4 rounded-lg">
-          <h2 className="text-xl font-bold mb-4 text-green-800">Fortalezas</h2>
-          <ul className="space-y-2">
-            {elementos
-              .filter(e => e.tipo === 'fortaleza')
-              .map(e => (
-                <li key={e.id} className="bg-white p-3 rounded shadow-sm">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium">{e.texto}</p>
-                      <p className="text-sm text-gray-600">Dimensión: {e.dimension}</p>
+        {["fortaleza", "oportunidad", "debilidad", "amenaza"].map(tipo => {
+          const colores: Record<string, string> = {
+            fortaleza: "green", oportunidad: "blue", debilidad: "yellow", amenaza: "red"
+          };
+          return (
+            <div key={tipo} className={`bg-${colores[tipo]}-50 p-4 rounded-lg`}>
+              <h2 className={`text-xl font-bold mb-4 text-${colores[tipo]}-800`}>
+                {tipo[0].toUpperCase() + tipo.slice(1)}s
+              </h2>
+              <ul className="space-y-2">
+                {elementos.filter(e => e.tipo === tipo).map(e => (
+                  <li key={e.id} className="bg-white p-3 rounded shadow-sm">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium">{e.texto}</p>
+                        <p className="text-sm text-gray-600">Dimensión: {e.dimension}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleEdit(e)} className="text-blue-500 hover:text-blue-700">Editar</button>
+                        <button onClick={() => handleDelete(e.id)} className="text-red-500 hover:text-red-700">Eliminar</button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(e)}
-                        className="text-blue-500 hover:text-blue-700"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDelete(e.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-          </ul>
-        </div>
-
-        {/* Oportunidades */}
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h2 className="text-xl font-bold mb-4 text-blue-800">Oportunidades</h2>
-          <ul className="space-y-2">
-            {elementos
-              .filter(e => e.tipo === 'oportunidad')
-              .map(e => (
-                <li key={e.id} className="bg-white p-3 rounded shadow-sm">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium">{e.texto}</p>
-                      <p className="text-sm text-gray-600">Dimensión: {e.dimension}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(e)}
-                        className="text-blue-500 hover:text-blue-700"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDelete(e.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-          </ul>
-        </div>
-
-        {/* Debilidades */}
-        <div className="bg-yellow-50 p-4 rounded-lg">
-          <h2 className="text-xl font-bold mb-4 text-yellow-800">Debilidades</h2>
-          <ul className="space-y-2">
-            {elementos
-              .filter(e => e.tipo === 'debilidad')
-              .map(e => (
-                <li key={e.id} className="bg-white p-3 rounded shadow-sm">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium">{e.texto}</p>
-                      <p className="text-sm text-gray-600">Dimensión: {e.dimension}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(e)}
-                        className="text-blue-500 hover:text-blue-700"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDelete(e.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-          </ul>
-        </div>
-
-        {/* Amenazas */}
-        <div className="bg-red-50 p-4 rounded-lg">
-          <h2 className="text-xl font-bold mb-4 text-red-800">Amenazas</h2>
-          <ul className="space-y-2">
-            {elementos
-              .filter(e => e.tipo === 'amenaza')
-              .map(e => (
-                <li key={e.id} className="bg-white p-3 rounded shadow-sm">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium">{e.texto}</p>
-                      <p className="text-sm text-gray-600">Dimensión: {e.dimension}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(e)}
-                        className="text-blue-500 hover:text-blue-700"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDelete(e.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-          </ul>
-        </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
       </div>
 
       {/* Modal/Formulario */}
@@ -339,7 +192,7 @@ export default function FodaPage() {
             <h2 className="text-2xl font-bold mb-4">
               {editElemento ? "Editar Elemento FODA" : "Agregar Elemento FODA"}
             </h2>
-            
+
             <div className="mb-4">
               <label className="block font-semibold mb-1">Tipo</label>
               <select
@@ -367,22 +220,8 @@ export default function FodaPage() {
                 {dimensiones.map(dim => (
                   <option key={dim} value={dim}>{dim}</option>
                 ))}
-                <option value="nueva">+ Nueva dimensión</option>
               </select>
             </div>
-
-            {nuevoElemento.dimension === "nueva" && (
-              <div className="mb-4">
-                <label className="block font-semibold mb-1">Nueva Dimensión</label>
-                <input
-                  type="text"
-                  className="w-full border rounded p-2"
-                  value={nuevoElemento.dimension === "nueva" ? "" : nuevoElemento.dimension}
-                  onChange={e => setNuevoElemento({...nuevoElemento, dimension: e.target.value})}
-                  required
-                />
-              </div>
-            )}
 
             <div className="mb-4">
               <label className="block font-semibold mb-1">Descripción</label>
@@ -394,12 +233,30 @@ export default function FodaPage() {
               />
             </div>
 
+            <div className="mb-4">
+              <label className="block font-semibold mb-1">Meta (opcional)</label>
+              <select
+                className="w-full border rounded p-2"
+                value={nuevoElemento.meta ?? ""}
+                onChange={e => setNuevoElemento({
+                  ...nuevoElemento,
+                  meta: e.target.value === "" ? null : e.target.value as FodaElement["meta"]
+                })}
+              >
+                <option value="">Sin meta</option>
+                <option value="mantener">Mantener</option>
+                <option value="explotar">Explotar</option>
+                <option value="corregir">Corregir</option>
+                <option value="afrontar">Afrontar</option>
+              </select>
+            </div>
+
             <div className="flex justify-end gap-2">
               <CustomButton type="button" variant="outline" onClick={() => setShowForm(false)}>
                 Cancelar
               </CustomButton>
               <CustomButton type="submit">
-                {editElemento ? "Guardar" : "Agregar"}
+                {editElemento ? "Guardar cambios" : "Agregar"}
               </CustomButton>
             </div>
           </form>
