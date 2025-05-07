@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { CustomButton } from "@/components/ui/custom-button";
 import { Fragment } from "react";
+import { useRouter } from "next/navigation";
 
 export interface Proyecto {
   id?: number;
@@ -41,6 +42,7 @@ export default function ProyectoForm({
   onCancel: () => void;
   onSave?: (p: Proyecto) => void;
 }) {
+  const router = useRouter();
   const [form, setForm] = useState<Proyecto>({
     nombre: proyecto.nombre || "",
     descripcion: proyecto.descripcion || "",
@@ -142,6 +144,9 @@ export default function ProyectoForm({
 
       setLoading(false);
       if (onSave) onSave(proyectoGuardado);
+      
+      // Navigate back to the projects page
+      router.push("/proyectos/lista");
     } catch (error) {
       console.error("Error:", error);
       setLoading(false);

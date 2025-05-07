@@ -4,10 +4,10 @@ import { useRouter, useParams } from "next/navigation";
 import { CustomButton } from "@/components/ui/custom-button";
 
 interface Proyecto {
-  id?: string;
+  id?: number;
   nombre: string;
   descripcion: string;
-  objetivo_id?: string;
+  objetivo_id?: number;
   responsable: string;
   colaboradores: string;
   estado_avance: string;
@@ -21,15 +21,17 @@ interface Proyecto {
 }
 
 interface Objetivo {
-  id: string;
+  id: number;
   nombre: string;
   descripcion: string;
 }
 
 interface ObjetivoSmart {
+  id?: number;
   nombre: string;
   descripcion: string;
   cumplida: boolean;
+  proyecto_id?: number;
 }
 
 export default function ProyectoDetallePage() {
@@ -38,6 +40,7 @@ export default function ProyectoDetallePage() {
   const { id } = params;
   const [proyecto, setProyecto] = useState<Proyecto | null>(null);
   const [objetivo, setObjetivo] = useState<Objetivo | null>(null);
+  const [objetivosSmart, setObjetivosSmart] = useState<ObjetivoSmart[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -54,6 +57,15 @@ export default function ProyectoDetallePage() {
                 setObjetivo(obj || null);
               }
             });
+        }
+      });
+
+    // Fetch SMART objectives
+    fetch(`http://localhost:3030/api/proyectos/${id}/objetivos-smart`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setObjetivosSmart(data);
         }
       });
   }, [id]);
@@ -89,21 +101,33 @@ export default function ProyectoDetallePage() {
           <span className="font-semibold">Fecha de fin:</span> {proyecto.fecha_fin}
         </div>
         {/* Objetivos SMART */}
-        {proyecto.objetivosSmart && proyecto.objetivosSmart.length > 0 && (
-          <div className="mb-4">
-            <span className="font-semibold">Objetivos Específicos (SMART):</span>
+        <div className="mb-4">
+          <span className="font-semibold block mb-2">Objetivos Específicos (SMART):</span>
+          {objetivosSmart.length > 0 ? (
             <ul className="list-disc ml-6 mt-2">
-              {proyecto.objetivosSmart.map((o, idx) => (
-                <li key={idx} className="mb-1">
-                  <span className={o.cumplida ? "line-through" : ""}>
-                    <strong>{o.nombre}</strong>: {o.descripcion}
-                  </span>
-                  {o.cumplida && <span className="ml-2 text-green-600">✔ Cumplido</span>}
+              {objetivosSmart.map((o, idx) => (
+                <li key={idx} className="mb-2">
+                  <div className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={o.cumplida}
+                      readOnly
+                      className="mt-1"
+                    />
+                    <div>
+                      <span className={o.cumplida ? "line-through" : ""}>
+                        <strong>{o.nombre}</strong>
+                      </span>
+                      <p className="text-gray-600 text-sm">{o.descripcion}</p>
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>
-          </div>
-        )}
+          ) : (
+            <p className="text-gray-400 italic">No hay objetivos SMART definidos</p>
+          )}
+        </div>
         {/* PDFs */}
         {proyecto.pdfs && proyecto.pdfs.length > 0 && (
           <div className="mb-4">
@@ -121,47 +145,6 @@ export default function ProyectoDetallePage() {
             </ul>
           </div>
         )}
-        {/* Ejemplo de datos para backend */}
-        <div className="mb-4 bg-gray-100 p-4 rounded">
-          <span className="font-semibold block mb-2">Ejemplo de datos JSON esperado para el backend:</span>
-          <pre className="text-xs overflow-x-auto bg-gray-200 p-2 rounded">
-{`
-{
-  "id": "123",
-  "nombre": "Mejoramiento de Espacios Públicos",
-  "descripcion": "Proyecto para renovar parques y aceras del barrio.",
-  "objetivo_id": "obj-estrategico-1",
-  "responsable": "Juan Pérez",
-  "colaboradores": "María García, Carlos López",
-  "estado_avance": "En proceso",
-  "fecha_inicio": "2024-06-01",
-  "fecha_fin": "2024-12-31",
-  "objetivosSmart": [
-    {
-      "nombre": "Renovar 2 parques principales",
-      "descripcion": "Completar la renovación de los parques Central y Norte antes de noviembre.",
-      "cumplida": false
-    },
-    {
-      "nombre": "Mejorar accesibilidad en aceras",
-      "descripcion": "Reparar y adaptar 500 metros de aceras para accesibilidad universal.",
-      "cumplida": true
-    }
-  ],
-  "pdfs": [
-    {
-      "name": "diagnostico-inicial.pdf",
-      "url": "https://servidor.com/uploads/diagnostico-inicial.pdf"
-    },
-    {
-      "name": "planos-renovacion.pdf",
-      "url": "https://servidor.com/uploads/planos-renovacion.pdf"
-    }
-  ]
-}
-`}
-          </pre>
-        </div>
         <div className="flex justify-end gap-2 mt-6">
           <CustomButton type="button" variant="outline" onClick={() => router.push("/proyectos/lista")}>Atrás</CustomButton>
         </div>
