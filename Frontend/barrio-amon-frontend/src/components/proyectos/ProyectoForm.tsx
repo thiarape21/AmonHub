@@ -4,26 +4,30 @@ import { CustomButton } from "@/components/ui/custom-button";
 import { Fragment } from "react";
 
 export interface Proyecto {
-  id?: string;
+  id?: number;
   nombre: string;
   descripcion: string;
-  objetivo_id?: string;
-  responsable: string;
-  colaboradores: string;
+  objetivo_id: number;
   estado_avance: string;
   fecha_inicio: string;
   fecha_fin: string;
-  evidencias?: string;
-  alertas?: string;
-  tareas?: any[];
-  objetivosSmart?: ObjetivoSmart[];
-  pdfs?: File[];
+  colaboradores: string;
+  responsable: string;
 }
 
 interface ObjetivoSmart {
+  id?: number;
+  proyecto_id?: number;
   nombre: string;
   descripcion: string;
   cumplida: boolean;
+}
+
+interface Pdf {
+  id?: number;
+  nombre: string;
+  url: string;
+  proyecto_id?: number;
 }
 
 export default function ProyectoForm({
@@ -40,25 +44,20 @@ export default function ProyectoForm({
   const [form, setForm] = useState<Proyecto>({
     nombre: proyecto.nombre || "",
     descripcion: proyecto.descripcion || "",
-    objetivo_id: proyecto.objetivo_id || "",
-    responsable: proyecto.responsable || "",
-    colaboradores: proyecto.colaboradores || "",
+    objetivo_id: proyecto.objetivo_id || 0,
     estado_avance: proyecto.estado_avance || "",
     fecha_inicio: proyecto.fecha_inicio || "",
     fecha_fin: proyecto.fecha_fin || "",
-    evidencias: proyecto.evidencias || "",
-    alertas: proyecto.alertas || "",
-    tareas: proyecto.tareas || [],
-    objetivosSmart: proyecto.objetivosSmart || [],
-    pdfs: proyecto.pdfs || [],
+    colaboradores: proyecto.colaboradores || "",
+    responsable: proyecto.responsable || "",
   });
   const [loading, setLoading] = useState(false);
-  const [objetivos, setObjetivos] = useState<{ id: string; nombre: string }[]>([]);
+  const [objetivos, setObjetivos] = useState<{ id: number; nombre: string }[]>([]);
   const [showObjetivoForm, setShowObjetivoForm] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevoDescripcion, setNuevoDescripcion] = useState("");
   const [usuarios, setUsuarios] = useState<{ id: string; full_name: string }[]>([]);
-  const [objetivosSmart, setObjetivosSmart] = useState<ObjetivoSmart[]>(proyecto.objetivosSmart || []);
+  const [objetivosSmart, setObjetivosSmart] = useState<ObjetivoSmart[]>([]);
   const [nuevoSmart, setNuevoSmart] = useState<{ nombre: string; descripcion: string }>({ nombre: "", descripcion: "" });
   const [pdfs, setPdfs] = useState<File[]>([]);
 
@@ -75,7 +74,22 @@ export default function ProyectoForm({
         if (Array.isArray(data)) setUsuarios(data);
         else setUsuarios([]);
       });
-  }, []);
+    if (modo === "editar" && proyecto.id) {
+      fetch(`http://localhost:3030/api/proyectos/${proyecto.id}/objetivos-smart`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) setObjetivosSmart(data);
+        });
+
+      fetch(`http://localhost:3030/api/proyectos/${proyecto.id}/pdfs`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            // Aquí podrías manejar los PDFs existentes si es necesario
+          }
+        });
+    }
+  }, [modo, proyecto.id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -84,20 +98,53 @@ export default function ProyectoForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const proyectoAEnviar = { ...form, objetivosSmart, pdfs };
-    const url = modo === "crear"
-      ? "http://localhost:3030/api/proyectos"
-      : `http://localhost:3030/api/proyectos/${proyecto.id}`;
-    const method = modo === "crear" ? "POST" : "PUT";
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(proyectoAEnviar),
-    });
-    setLoading(false);
-    if (res.ok && onSave) {
-      const data = await res.json();
-      onSave(data);
+
+    try {
+      const url = modo === "crear"
+        ? "http://localhost:3030/api/proyectos"
+        : `http://localhost:3030/api/proyectos/${proyecto.id}`;
+      const method = modo === "crear" ? "POST" : "PUT";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) throw new Error("Error al guardar el proyecto");
+
+      const proyectoGuardado = await res.json();
+
+      if (objetivosSmart.length > 0) {
+        const objetivosSmartConProyectoId = objetivosSmart.map(obj => ({
+          ...obj,
+          proyecto_id: proyectoGuardado.id
+        }));
+
+        await fetch(`http://localhost:3030/api/proyectos/${proyectoGuardado.id}/objetivos-smart`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(objetivosSmartConProyectoId),
+        });
+      }
+
+      if (pdfs.length > 0) {
+        const formData = new FormData();
+        pdfs.forEach((file, index) => {
+          formData.append(`pdfs`, file);
+        });
+
+        await fetch(`http://localhost:3030/api/proyectos/${proyectoGuardado.id}/pdfs`, {
+          method: "POST",
+          body: formData,
+        });
+      }
+
+      setLoading(false);
+      if (onSave) onSave(proyectoGuardado);
+    } catch (error) {
+      console.error("Error:", error);
+      setLoading(false);
     }
   };
 

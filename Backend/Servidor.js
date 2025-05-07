@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import fileUpload from 'express-fileupload';
 import dotenv from "dotenv";
 import dataRoutes from "./Rutas/DataRutas.js";
 import authRoutes from "./Rutas/AuthRutas.js";
@@ -34,6 +35,7 @@ testDBConnection();
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(fileUpload());
 
 app.use("/api", dataRoutes);
 app.use("/api/auth", authRoutes);
