@@ -15,57 +15,6 @@ router.get("/datos", async (req, res) => {
   res.json(data);
 });
 
-// Obtener todos los FODA asociados a un objetivo (relación N:N)
-router.get("/objetivos/:id/foda", async (req, res) => {
-  const { id } = req.params;
-
-  const { data, error } = await supabase
-    .from("Objetivo_FODA")
-    .select(`
-      foda:AnalisisFoda(*)
-    `)
-    .eq("objetivo_id", id);
-
-  if (error) {
-    return res.status(400).json({ error: error.message });
-  }
-
-  // Extraer solo los elementos FODA
-  const fodaData = data.map(entry => entry.foda);
-  res.json(fodaData);
-});
-
-// Asociar un FODA a un objetivo (insertar en tabla intermedia)
-router.post("/objetivos/:id/foda", async (req, res) => {
-  const { id } = req.params;
-  const { foda_id } = req.body;
-
-  const { error } = await supabase
-    .from("Objetivo_FODA")
-    .insert([{ objetivo_id: id, foda_id }]);
-
-  if (error) {
-    return res.status(400).json({ error: error.message });
-  }
-
-  res.status(201).json({ message: "FODA asociado al objetivo correctamente" });
-});
-
-router.delete("/objetivos/:objetivo_id/foda/:foda_id", async (req, res) => {
-  const { objetivo_id, foda_id } = req.params;
-
-  const { error } = await supabase
-    .from("Objetivo_FODA")
-    .delete()
-    .match({ objetivo_id, foda_id });
-
-  if (error) {
-    return res.status(400).json({ error: error.message });
-  }
-
-  res.status(204).send();
-});
-
 
 router.get("/usuarios/:user_id", async (req, res) => {
   const { user_id } = req.params;
@@ -246,31 +195,29 @@ router.delete("/usuarios/:id", async (req, res) => {
 
 // CRUD Proyectos
 router.get("/proyectos", async (req, res) => {
-  const { data, error } = await supabase.from("Proyectos").select("*");
+  const { data, error } = await supabase.from("proyectos").select("*");
   if (error) return res.status(400).json({ error: error.message });
   res.json(data);
 });
 
 router.get("/proyectos/:id", async (req, res) => {
   const { id } = req.params;
-  const { data, error } = await supabase.from("Proyectos").select("*").eq("id", id).single();
+  const { data, error } = await supabase.from("proyectos").select("*").eq("id", id).single();
   if (error) return res.status(404).json({ error: error.message });
   res.json(data);
 });
 
 router.post("/proyectos", async (req, res) => {
   const proyecto = req.body;
-  console.log(proyecto); 
-  const { data, error } = await supabase.from("Proyectos").insert([proyecto]).select("*").single();
+  const { data, error } = await supabase.from("proyectos").insert([proyecto]).select("*").single();
   if (error) return res.status(400).json({ error: error.message });
-  console.log(data);
   res.status(201).json(data);
 });
 
 router.put("/proyectos/:id", async (req, res) => {
   const { id } = req.params;
   const proyecto = req.body;
-  const { data, error } = await supabase.from("Proyectos").update(proyecto).eq("id", id).select("*").single();
+  const { data, error } = await supabase.from("proyectos").update(proyecto).eq("id", id).select("*").single();
   if (error) return res.status(400).json({ error: error.message });
   res.json(data);
 });
@@ -281,6 +228,7 @@ router.delete("/proyectos/:id", async (req, res) => {
   if (error) return res.status(400).json({ error: error.message });
   res.status(204).send();
 });
+
 
 // CRUD Objetivos
 // Obtener todos los objetivos
@@ -532,5 +480,107 @@ router.delete("/pdfs/:id", async (req, res) => {
     });
   }
 });
+
+// Obtener todos los elementos FODA
+router.get("/analisis-foda", async (req, res) => {
+  try {
+    const { data, error } = await supabase.from("AnalisisFoda").select("*");
+
+    if (error) {
+      return res.status(500).json({ message: "Error al obtener análisis FODA", error: error.message });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
+  }
+});
+
+// Obtener un solo elemento FODA por ID
+router.get("/analisis-foda/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data, error } = await supabase
+      .from("AnalisisFoda")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      return res.status(404).json({ message: "Elemento FODA no encontrado", error: error.message });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
+  }
+});
+
+// Crear un nuevo elemento FODA
+router.post("/analisis-foda", async (req, res) => {
+  const { texto, tipo, dimension, meta } = req.body;
+
+  if (!texto || !tipo || !dimension) {
+    return res.status(400).json({ message: "Faltan campos requeridos." });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("AnalisisFoda")
+      .insert([{ texto, tipo, dimension, meta }])
+      .select("*")
+      .single();
+
+    if (error) {
+      return res.status(400).json({ message: "Error al crear elemento FODA", error: error.message });
+    }
+
+    res.status(201).json(data);
+  } catch (error) {
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
+  }
+});
+
+// Actualizar un elemento FODA
+router.put("/analisis-foda/:id", async (req, res) => {
+  const { id } = req.params;
+  const { texto, tipo, dimension, meta } = req.body;
+
+  try {
+    const { data, error } = await supabase
+      .from("AnalisisFoda")
+      .update({ texto, tipo, dimension, meta })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (error) {
+      return res.status(400).json({ message: "Error al actualizar elemento FODA", error: error.message });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
+  }
+});
+
+// Eliminar un elemento FODA
+router.delete("/analisis-foda/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const { error } = await supabase.from("AnalisisFoda").delete().eq("id", id);
+
+    if (error) {
+      return res.status(400).json({ message: "Error al eliminar elemento FODA", error: error.message });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
+  }
+});
+
+
 
 export default router;
