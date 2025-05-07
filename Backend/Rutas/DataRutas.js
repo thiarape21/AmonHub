@@ -15,6 +15,58 @@ router.get("/datos", async (req, res) => {
   res.json(data);
 });
 
+// Obtener todos los FODA asociados a un objetivo (relación N:N)
+router.get("/objetivos/:id/foda", async (req, res) => {
+  const { id } = req.params;
+
+  const { data, error } = await supabase
+    .from("Objetivo_FODA")
+    .select(`
+      foda:AnalisisFoda(*)
+    `)
+    .eq("objetivo_id", id);
+
+  if (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  // Extraer solo los elementos FODA
+  const fodaData = data.map(entry => entry.foda);
+  res.json(fodaData);
+});
+
+// Asociar un FODA a un objetivo (insertar en tabla intermedia)
+router.post("/objetivos/:id/foda", async (req, res) => {
+  const { id } = req.params;
+  const { foda_id } = req.body;
+
+  const { error } = await supabase
+    .from("Objetivo_FODA")
+    .insert([{ objetivo_id: id, foda_id }]);
+
+  if (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  res.status(201).json({ message: "FODA asociado al objetivo correctamente" });
+});
+
+router.delete("/objetivos/:objetivo_id/foda/:foda_id", async (req, res) => {
+  const { objetivo_id, foda_id } = req.params;
+
+  const { error } = await supabase
+    .from("Objetivo_FODA")
+    .delete()
+    .match({ objetivo_id, foda_id });
+
+  if (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  res.status(204).send();
+});
+
+
 router.get("/usuarios/:user_id", async (req, res) => {
   const { user_id } = req.params;
   const { data, error } = await supabase
