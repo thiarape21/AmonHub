@@ -219,11 +219,63 @@ router.put("/proyectos/:id", async (req, res) => {
 
 router.delete("/proyectos/:id", async (req, res) => {
   const { id } = req.params;
-  const { error } = await supabase.from("proyectos").delete().eq("id", id);
+  const { error } = await supabase.from("Proyectos").delete().eq("id", id);
   if (error) return res.status(400).json({ error: error.message });
   res.status(204).send();
 });
 
+// CRUD Objetivos
+// Obtener todos los objetivos
+router.get("/objetivos", async (req, res) => {
+  const { data, error } = await supabase
+    .from("Objetivos")
+    .select("id, nombre, descripcion");
+  if (error) return res.status(400).json({ error: error.message });
+  res.json(data);
+});
+
+// Obtener un objetivo específico por ID
+router.get("/objetivos/:id", async (req, res) => {
+  const { id } = req.params;
+  const { data, error } = await supabase
+    .from("Objetivos")
+    .select("id, nombre, descripcion")
+    .eq("id", id)
+    .single();
+  if (error) return res.status(404).json({ error: error.message });
+  res.json(data);
+});
+
+// Crear un nuevo objetivo
+router.post("/objetivos", async (req, res) => {
+  const { nombre, descripcion } = req.body;
+  const { data, error } = await supabase
+    .from("Objetivos")
+    .insert([{ nombre, descripcion }])
+    .select()
+    .single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.status(201).json(data);
+});
+
+// Actualizar un objetivo existente
+router.put("/objetivos/:id", async (req, res) => {
+  const { id } = req.params;
+  const { nombre, descripcion } = req.body;
+  const { data, error } = await supabase
+    .from("Objetivos")
+    .update({ nombre, descripcion })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.json(data);
+});
+
+// Eliminar un objetivo
+router.delete("/objetivos/:id", async (req, res) => {
+  const { id } = req.params;
+  const { error } = await supabase.from("Objetivos").delete().eq("id", id);
   if (error) return res.status(400).json({ error: error.message });
   res.status(204).send();
 });
