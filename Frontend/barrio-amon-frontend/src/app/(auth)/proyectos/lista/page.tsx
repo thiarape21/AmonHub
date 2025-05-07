@@ -5,7 +5,7 @@ import { CustomButton } from "@/components/ui/custom-button";
 import type { Proyecto } from "@/components/proyectos/ProyectoForm";
 
 interface Objetivo {
-  id: number;
+  id: string;
   nombre: string;
 }
 
@@ -33,9 +33,8 @@ export default function ProyectosListaPage() {
       });
   }, []);
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (!confirm("¿Seguro que deseas eliminar este proyecto?")) return;
-    
     await fetch(`http://localhost:3030/api/proyectos/${id}`, { method: "DELETE" });
     setProyectos(proyectos.filter((p) => p.id !== id));
   };
@@ -67,9 +66,9 @@ export default function ProyectosListaPage() {
                   <td className="py-2 px-4">{proyecto.responsable}</td>
                   <td className="py-2 px-4">{proyecto.estado_avance}</td>
                   <td className="py-2 px-4 space-x-2">
-                    <CustomButton size="sm" variant="outline" onClick={() => router.push(`/proyectos/${proyecto.id}`)}>Ver</CustomButton>
-                    <CustomButton size="sm" variant="outline" onClick={() => router.push(`/proyectos/${proyecto.id}?edit=1`)}>Editar</CustomButton>
-                    <CustomButton size="sm" variant="destructive" onClick={() => handleDelete(proyecto.id!)}>Eliminar</CustomButton>
+                    <CustomButton size="sm" variant="outline" onClick={() => router.push(`/proyectos/${proyecto.id as string}`)}>Ver</CustomButton>
+                    <CustomButton size="sm" variant="outline" onClick={() => router.push(`/proyectos/${proyecto.id as string}?edit=1`)}>Editar</CustomButton>
+                    <CustomButton size="sm" variant="destructive" onClick={() => handleDelete(proyecto.id as string)}>Eliminar</CustomButton>
                   </td>
                 </tr>
               );
