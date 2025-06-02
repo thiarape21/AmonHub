@@ -117,9 +117,24 @@ const elementosFodaEjemplo: FodaElement[] = [
   }
 ];
 
+// Estado inicial de dimensiones (catálogo editable, datos en duro)
+const dimensionesEjemplo = [
+  "Patrimonio",
+  "Ubicación",
+  "Comunidad",
+  "Recursos",
+  "Turismo",
+  "Inversión",
+  "Infraestructura",
+  "Espacios Públicos",
+  "Gestión",
+  "Desarrollo",
+  "Clima"
+];
+
 export default function FodaPage() {
   const [elementos, setElementos] = useState<FodaElement[]>(elementosFodaEjemplo);
-  const [dimensiones, setDimensiones] = useState<string[]>([]);
+  const [dimensiones, setDimensiones] = useState<string[]>(dimensionesEjemplo);
   const [showForm, setShowForm] = useState(false);
   const [editElemento, setEditElemento] = useState<FodaElement | null>(null);
   const [nuevoElemento, setNuevoElemento] = useState<Partial<FodaElement>>({
@@ -127,12 +142,22 @@ export default function FodaPage() {
     tipo: "fortaleza",
     dimension: ""
   });
+  const [nuevaDimension, setNuevaDimension] = useState("");
 
-  useEffect(() => {
-    // Extraer dimensiones únicas
-    const dims = [...new Set(elementos.map(e => e.dimension))];
-    setDimensiones(dims);
-  }, [elementos]);
+  // Eliminar dimensión del catálogo y de los elementos FODA
+  const handleEliminarDimension = (dim: string) => {
+    if (!confirm(`¿Seguro que deseas eliminar la dimensión "${dim}"? Esto eliminará los elementos FODA asociados.`)) return;
+    setDimensiones(dimensiones.filter(d => d !== dim));
+    setElementos(elementos.filter(e => e.dimension !== dim));
+  };
+
+  // Agregar nueva dimensión al catálogo
+  const handleAgregarDimension = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nuevaDimension.trim() || dimensiones.includes(nuevaDimension.trim())) return;
+    setDimensiones([...dimensiones, nuevaDimension.trim()]);
+    setNuevaDimension("");
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,16 +210,34 @@ export default function FodaPage() {
         }}>Agregar Elemento FODA</CustomButton>
       </div>
 
-      {/* Dimensiones */}
+      {/* Dimensiones (Catálogo editable) */}
       <div className="mb-8">
         <h2 className="text-2xl font-bold mb-4">Dimensiones Identificadas</h2>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 mb-2">
           {dimensiones.map(dim => (
-            <span key={dim} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+            <span key={dim} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center gap-1">
               {dim}
+              <button
+                className="ml-1 text-red-500 hover:text-red-700 text-xs font-bold"
+                title="Eliminar dimensión"
+                onClick={() => handleEliminarDimension(dim)}
+                type="button"
+              >
+                ×
+              </button>
             </span>
           ))}
         </div>
+        <form className="flex gap-2 items-center" onSubmit={handleAgregarDimension}>
+          <input
+            type="text"
+            className="border rounded p-1 text-sm"
+            placeholder="Agregar nueva dimensión..."
+            value={nuevaDimension}
+            onChange={e => setNuevaDimension(e.target.value)}
+          />
+          <CustomButton type="submit" size="sm">Agregar</CustomButton>
+        </form>
       </div>
 
       {/* Matriz FODA */}
@@ -367,22 +410,8 @@ export default function FodaPage() {
                 {dimensiones.map(dim => (
                   <option key={dim} value={dim}>{dim}</option>
                 ))}
-                <option value="nueva">+ Nueva dimensión</option>
               </select>
             </div>
-
-            {nuevoElemento.dimension === "nueva" && (
-              <div className="mb-4">
-                <label className="block font-semibold mb-1">Nueva Dimensión</label>
-                <input
-                  type="text"
-                  className="w-full border rounded p-2"
-                  value={nuevoElemento.dimension === "nueva" ? "" : nuevoElemento.dimension}
-                  onChange={e => setNuevoElemento({...nuevoElemento, dimension: e.target.value})}
-                  required
-                />
-              </div>
-            )}
 
             <div className="mb-4">
               <label className="block font-semibold mb-1">Descripción</label>

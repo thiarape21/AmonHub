@@ -7,7 +7,7 @@ interface Proyecto {
   nombre: string;
   descripcion?: string;
   estado?: string;
-  tareas?: { nombre: string; completada: boolean }[];
+  tareas?: { nombre: string; completada: boolean; responsable?: string; fecha_inicio?: string; fecha_fin?: string; estado?: string }[];
   objetivos_asociados?: string[];
 }
 
@@ -78,8 +78,63 @@ const MOCK_OBJETIVOS: (Objetivo & { planesOperativos?: any[] })[] = [
     tipo: "estrategico",
     descripcion: "Apoyar murales y actividades culturales en espacios públicos.",
     estado_inicial: "Completado",
-    planesOperativos: []
+    planesOperativos: [
+      {
+        id: "po3",
+        nombre: "Plan Operativo 2024",
+        anio: 2024,
+        metas: [
+          {
+            id: "m3",
+            nombre: "Crear 3 nuevos murales comunitarios",
+            cumplida: false,
+            actividades: [
+              { nombre: "Seleccionar ubicaciones", completada: true },
+              { nombre: "Convocar artistas locales", completada: false },
+              { nombre: "Organizar jornadas de pintura", completada: false }
+            ]
+          }
+        ]
+      }
+    ]
   },
+  {
+    id: "o4",
+    nombre: "Desarrollar infraestructura verde",
+    tipo: "estrategico",
+    descripcion: "Crear y mejorar espacios verdes para la comunidad.",
+    estado_inicial: "Planificado",
+    planesOperativos: [
+      {
+        id: "po4",
+        nombre: "Plan Operativo 2025",
+        anio: 2025,
+        metas: [
+          {
+            id: "m4",
+            nombre: "Inaugurar un nuevo parque vecinal",
+            cumplida: false,
+            actividades: [
+              { nombre: "Diseño del parque", completada: true },
+              { nombre: "Adquisición de terrenos", completada: false },
+              { nombre: "Construcción y paisajismo", completada: false },
+              { nombre: "Acto de inauguración", completada: false }
+            ]
+          },
+          {
+            id: "m5",
+            nombre: "Reforestar áreas degradadas",
+            cumplida: false,
+            actividades: [
+              { nombre: "Identificación de áreas", completada: true },
+              { nombre: "Preparación del suelo", completada: true },
+              { nombre: "Jornadas de siembra", completada: false }
+            ]
+          }
+        ]
+      }
+    ]
+  }
 ];
 
 const MOCK_PROYECTOS: Proyecto[] = [
@@ -89,9 +144,9 @@ const MOCK_PROYECTOS: Proyecto[] = [
     descripcion: "Evento anual con música, arte y gastronomía local.",
     estado: "En ejecución",
     tareas: [
-      { nombre: "Contratar artistas", completada: true },
-      { nombre: "Solicitar permisos municipales", completada: true },
-      { nombre: "Promocionar en redes sociales", completada: false },
+      { nombre: "Contratar artistas", completada: true, responsable: "Ana Gómez", fecha_inicio: "", fecha_fin: "", estado: "Completada" },
+      { nombre: "Solicitar permisos municipales", completada: true, responsable: "Juan Pérez", fecha_inicio: "", fecha_fin: "", estado: "Completada" },
+      { nombre: "Promocionar en redes sociales", completada: false, responsable: "Carlos Ruiz", fecha_inicio: "", fecha_fin: "", estado: "En proceso" },
     ],
     objetivos_asociados: ["o1", "o3"],
   },
@@ -101,8 +156,8 @@ const MOCK_PROYECTOS: Proyecto[] = [
     descripcion: "Charlas y señalización en puntos críticos del barrio.",
     estado: "Planificado",
     tareas: [
-      { nombre: "Diseñar material educativo", completada: false },
-      { nombre: "Colocar señales", completada: false },
+      { nombre: "Diseñar material educativo", completada: false, responsable: "Ana Gómez", fecha_inicio: "", fecha_fin: "", estado: "Pendiente" },
+      { nombre: "Colocar señales", completada: false, responsable: "Juan Pérez", fecha_inicio: "", fecha_fin: "", estado: "Pendiente" },
     ],
     objetivos_asociados: ["o2"],
   },
@@ -112,9 +167,9 @@ const MOCK_PROYECTOS: Proyecto[] = [
     descripcion: "Creación de mural con participación de artistas locales y vecinos.",
     estado: "Completado",
     tareas: [
-      { nombre: "Seleccionar artistas", completada: true },
-      { nombre: "Preparar pared", completada: true },
-      { nombre: "Inauguración", completada: true },
+      { nombre: "Seleccionar artistas", completada: true, responsable: "Carlos Ruiz", fecha_inicio: "", fecha_fin: "", estado: "Completado" },
+      { nombre: "Preparar pared", completada: true, responsable: "Ana Gómez", fecha_inicio: "", fecha_fin: "", estado: "Completado" },
+      { nombre: "Inauguración", completada: true, responsable: "Juan Pérez", fecha_inicio: "", fecha_fin: "", estado: "Completado" },
     ],
     objetivos_asociados: ["o3"],
   },
@@ -125,161 +180,158 @@ export default function MonitoreoPage() {
   const [activeTab, setActiveTab] = useState<'proyectos' | 'monitoreo'>("proyectos");
   const [objetivoTipoFiltro, setObjetivoTipoFiltro] = useState<'estrategico' | 'operativo'>('estrategico');
 
-  // Usar los datos mock
-  const proyectos = MOCK_PROYECTOS;
-  const objetivos = MOCK_OBJETIVOS.filter(o => o.tipo === "estrategico");
+  // Add state for selected year, default to current year or a relevant year in data
+  const [selectedYear, setSelectedYear] = useState<number>(2024); // Assuming 2024 is a relevant starting year
 
-  // Relacionar proyectos a objetivos estratégicos
+  // Generate a list of years for the dropdown (e.g., from 2020 to current year + 5)
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: (currentYear + 5) - 2023 + 1 }, (_, i) => 2023 + i);
+
+  // Usar los datos mock (Reemplazar con fetch real cuando el backend esté listo)
+  const proyectos = MOCK_PROYECTOS;
+  // Filtrar solo objetivos estratégicos para esta vista principal
+  const objetivosEstrategicos = MOCK_OBJETIVOS.filter(o => o.tipo === "estrategico");
+
+  // Filter objectives and their plans by selected year
+  const filteredObjetivos = objetivosEstrategicos
+    .map(objetivo => ({
+      ...objetivo,
+      planesOperativos: (objetivo.planesOperativos || []).filter((plan: any) => plan.anio === selectedYear)
+    }))
+    .filter(objetivo => objetivo.planesOperativos.length > 0); // Only keep objectives that have plans for the selected year
+
+  // Group projects by associated strategic objective (still needed for task display, even if simplified)
   const proyectosPorObjetivo = (objetivoId: string) =>
     proyectos.filter(p => p.objetivos_asociados?.includes(objetivoId));
 
-  const renderProyectoCard = (proyecto: Proyecto) => {
-    const tareasRealizadas = proyecto.tareas?.filter(t => t.completada) || [];
-    const tareasPendientes = proyecto.tareas?.filter(t => !t.completada) || [];
-    return (
-      <div key={proyecto.id} className="bg-white rounded shadow p-4 mb-4">
-        <h3 className="text-xl font-semibold mb-2">{proyecto.nombre}</h3>
-        {proyecto.descripcion && <p className="mb-2 text-gray-700">{proyecto.descripcion}</p>}
-        <div className="mb-2">
-          <span className="font-medium">Estado:</span> {proyecto.estado || 'No definido'}
-        </div>
-        <div className="mb-2">
-          <span className="font-medium">Tareas realizadas:</span>
-          <ul className="ml-4 list-disc">
-            {tareasRealizadas.length > 0 ? tareasRealizadas.map((t, i) => (
-              <li key={i} className="text-green-700">{t.nombre}</li>
-            )) : <li className="text-gray-400 italic">Ninguna</li>}
-          </ul>
-        </div>
-        <div className="mb-2">
-          <span className="font-medium">Tareas pendientes:</span>
-          <ul className="ml-4 list-disc">
-            {tareasPendientes.length > 0 ? tareasPendientes.map((t, i) => (
-              <li key={i} className="text-yellow-700">{t.nombre}</li>
-            )) : <li className="text-gray-400 italic">Ninguna</li>}
-          </ul>
-        </div>
-        <div>
-          <span className="font-medium">Objetivos asociados:</span>
-          <ul className="ml-4 list-disc">
-            {proyecto.objetivos_asociados && proyecto.objetivos_asociados.length > 0 ?
-              proyecto.objetivos_asociados.map((oid, i) => (
-                <li key={i}>{oid}</li>
-              )) : <li className="text-gray-400 italic">Ninguno</li>}
-          </ul>
-        </div>
-      </div>
-    );
-  };
-
-  const renderObjetivoCard = (objetivo: Objetivo) => (
-    <div key={objetivo.id} className="bg-white rounded shadow p-4 mb-4">
-      <h3 className="text-xl font-semibold mb-2">{objetivo.nombre}</h3>
-      <div className="mb-2">
-        <span className="font-medium">Tipo:</span> {objetivo.tipo}
-      </div>
-      {objetivo.descripcion && <div className="mb-2"><span className="font-medium">Descripción:</span> {objetivo.descripcion}</div>}
-      <div>
-        <span className="font-medium">Estado inicial:</span> {objetivo.estado_inicial || 'No definido'}
-      </div>
-    </div>
-  );
-
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-4xl font-bold text-center mb-6 text-[#546b75]">MONITOREO</h1>
-      <div className="space-y-10">
-        {objetivos.length === 0 ? (
-          <div className="text-gray-500 italic">No hay objetivos estratégicos registrados.</div>
-        ) : (
-          objetivos.map(objetivo => (
-            <div key={objetivo.id} className="bg-white rounded shadow p-6">
-              <h2 className="text-2xl font-bold mb-2 text-[#4A6670]">{objetivo.nombre}</h2>
-              <div className="mb-2 text-gray-700">{objetivo.descripcion}</div>
-              <div className="mb-4 text-sm text-gray-500">Estado inicial: {objetivo.estado_inicial || 'No definido'}</div>
-              {/* Planes operativos */}
-              <h3 className="text-xl font-semibold mt-4 mb-2">Planes Operativos</h3>
-              <div className="space-y-4">
-                {objetivo.planesOperativos && objetivo.planesOperativos.length > 0 ? (
-                  objetivo.planesOperativos.map((plan: any) => (
-                    <div key={plan.id} className="mb-4 p-4 bg-gray-50 rounded shadow">
-                      <h4 className="text-lg font-bold mb-1">{plan.nombre} ({plan.anio})</h4>
-                      {plan.metas && plan.metas.length > 0 ? (
-                        <div>
-                          <ul className="mb-2">
-                            {plan.metas.map((meta: any) => (
-                              <li key={meta.id} className="mb-2">
-                                <div className="flex items-center gap-2">
-                                  <span className={meta.cumplida ? "text-green-700 font-semibold" : "text-yellow-700 font-semibold"}>
-                                    {meta.cumplida ? "✔" : "⏳"}
-                                  </span>
-                                  <span className={meta.cumplida ? "line-through" : ""}>{meta.nombre}</span>
-                                </div>
-                                {/* Actividades de la meta */}
-                                <ul className="ml-6 mt-1">
-                                  {meta.actividades && meta.actividades.map((act: any, idx: number) => (
-                                    <li key={idx} className={act.completada ? "text-green-600" : "text-gray-700"}>
-                                      {act.completada ? "●" : "○"} {act.nombre}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </li>
-                            ))}
-                          </ul>
-                          {/* Barra de progreso anual */}
-                          <div className="w-full bg-gray-200 rounded h-3 mb-2">
-                            <div
-                              className="bg-blue-500 h-3 rounded"
-                              style={{ width: `${Math.round((plan.metas.filter((m: any) => m.cumplida).length / plan.metas.length) * 100)}%` }}
-                            ></div>
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {plan.metas.filter((m: any) => m.cumplida).length} de {plan.metas.length} metas cumplidas
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-gray-500 italic">No hay metas para este año.</div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-gray-500 italic">No hay planes operativos asociados a este objetivo.</div>
-                )}
-              </div>
-              {/* Proyectos asociados */}
-              <h3 className="text-xl font-semibold mt-6 mb-2">Proyectos Asociados</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {proyectosPorObjetivo(objetivo.id).length === 0 ? (
-                  <div className="text-gray-500 italic col-span-2">No hay proyectos asociados.</div>
-                ) : (
-                  proyectosPorObjetivo(objetivo.id).map(proyecto => (
-                    <div key={proyecto.id} className="bg-gray-50 rounded shadow p-4">
-                      <h4 className="text-lg font-semibold mb-1">{proyecto.nombre}</h4>
-                      <div className="mb-1 text-gray-700">{proyecto.descripcion}</div>
-                      <div className="mb-1 text-sm"><span className="font-medium">Estado:</span> {proyecto.estado || 'No definido'}</div>
-                      <div className="mb-1 text-sm font-medium">Tareas realizadas:</div>
-                      <ul className="ml-4 mb-1">
-                        {proyecto.tareas?.filter(t => t.completada).length ? (
-                          proyecto.tareas?.filter(t => t.completada).map((t, i) => (
-                            <li key={i} className="text-green-700">{t.nombre}</li>
-                          ))
-                        ) : <li className="text-gray-400 italic">Ninguna</li>}
-                      </ul>
-                      <div className="mb-1 text-sm font-medium">Tareas pendientes:</div>
-                      <ul className="ml-4">
-                        {proyecto.tareas?.filter(t => !t.completada).length ? (
-                          proyecto.tareas?.filter(t => !t.completada).map((t, i) => (
-                            <li key={i} className="text-yellow-700">{t.nombre}</li>
-                          ))
-                        ) : <li className="text-gray-400 italic">Ninguna</li>}
-                      </ul>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          ))
-        )}
+
+      {/* Year Selection */}
+      <div className="mb-6 flex items-center gap-2">
+        <label htmlFor="yearSelect" className="font-semibold text-gray-700">Seleccionar Año:</label>
+        <select
+          id="yearSelect"
+          value={selectedYear}
+          onChange={e => setSelectedYear(parseInt(e.target.value))}
+          className="border border-gray-300 rounded-md shadow-sm p-2"
+        >
+          {years.map(year => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Main Title */}
+      <h1 className="text-4xl font-bold text-center mb-6 text-[#546b75]">Plan Operativo {selectedYear}</h1>
+
+      <div className="overflow-x-auto rounded-lg shadow">
+        <table className="min-w-full bg-white border-collapse">
+          <thead>
+            <tr className="bg-[#4A6670] text-white">
+              <th className="border border-gray-300 py-2 px-4 text-left">Objetivos Estratégicos</th>
+              <th className="border border-gray-300 py-2 px-4 text-left">Metas</th>
+              <th className="border border-gray-300 py-2 px-4 text-left">Actividades</th>
+              <th className="border border-gray-300 py-2 px-4 text-left">Indicadores</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredObjetivos.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="border border-gray-300 py-2 px-4 text-center text-gray-500 italic">No hay datos disponibles para el año seleccionado.</td>
+              </tr>
+            ) : (
+              filteredObjetivos.map((objetivo, objIndex) => {
+                const objetivoPlans = objetivo.planesOperativos || [];
+
+                // Calculate total rows for the objective
+                const totalObjectiveRows = objetivoPlans.reduce((planSum: number, plan: any) => {
+                  const planMetas = plan.metas || [];
+                  const totalPlanRows = planMetas.reduce((metaSum: number, meta: any) => {
+                    const totalMetaRows = Math.max(meta.actividades?.length || 0, 1);
+                    return metaSum + totalMetaRows;
+                  }, 0) || 1;
+                  return planSum + totalPlanRows;
+                }, 0) || 1;
+
+                let isFirstObjectiveRow = true;
+
+                // Since we removed the Plan column, we can flatten plans here
+                return objetivoPlans.flatMap((plan: any, planIndex: number) => {
+                  const planMetas = plan.metas || [];
+
+                  // Calculate total rows for the *remaining* columns within this plan
+                   const totalRowsInPlanRemainingColumns = planMetas.reduce((metaSum: number, meta: any) => {
+                    const totalMetaRows = Math.max(meta.actividades?.length || 0, 1);
+                    return metaSum + totalMetaRows;
+                   }, 0) || 1;
+
+                  let isFirstPlanContentRow = true; // Flag for the first row within this plan's content
+
+                  return planMetas.flatMap((meta: any, metaIndex: number) => {
+                    const metaActivities = meta.actividades || [];
+
+                    // Calculate total rows for the meta
+                    const totalMetaRows = Math.max(metaActivities.length, 1);
+
+                    let isFirstMetaRow = true;
+
+                    if (metaActivities.length === 0) {
+                      // Case: Meta with no activities
+                      const row = (
+                        <tr key={`${meta.id}-no-activities`} className={objIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                          {isFirstObjectiveRow && (
+                            <td rowSpan={totalObjectiveRows} className="border border-gray-300 py-2 px-4 font-semibold align-top">{objetivo.nombre}</td>
+                          )}
+                           {/* Removed Plan column content */}
+                          {isFirstMetaRow && (
+                            <td rowSpan={totalMetaRows} className="border border-gray-300 py-2 px-4 text-sm align-top">{meta.nombre}</td>
+                          )}
+                          <td className="border border-gray-300 py-2 px-4 text-center text-gray-500 italic">No hay actividades para esta meta.</td>
+                          <td className="border border-gray-300 py-2 px-4 text-center text-gray-500 italic"></td>
+                        </tr>
+                      );
+                      isFirstObjectiveRow = false;
+                      isFirstPlanContentRow = false;
+                      isFirstMetaRow = false;
+                      return row;
+                    } else {
+                      // Case: Meta with activities
+                      return metaActivities.map((activity: any, activityIndex: number) => {
+                        const row = (
+                          <tr key={`${meta.id}-activity-${activityIndex}`} className={objIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                            {/* Objective Cell */}
+                            {isFirstObjectiveRow && (
+                              <td rowSpan={totalObjectiveRows} className="border border-gray-300 py-2 px-4 font-semibold align-top">{objetivo.nombre}</td>
+                            )}
+                             {/* Removed Plan column content */}
+                            {/* Meta Cell */}
+                            {isFirstMetaRow && (
+                              <td rowSpan={totalMetaRows} className="border border-gray-300 py-2 px-4 text-sm align-top">{meta.nombre}</td>
+                            )}
+                            {/* Activity Cell */}
+                            <td className="border border-gray-300 py-2 px-4 text-sm">
+                              {activity.nombre}
+                            </td>
+                            {/* Indicators Cell (Placeholder) */}
+                            <td className="border border-gray-300 py-2 px-4 text-sm text-gray-500 italic">
+                              {/* TODO: Display activity evidence here when available from backend */}
+                              No hay indicadores disponibles en mock data.
+                            </td>
+                          </tr>
+                        );
+                        if (isFirstObjectiveRow) isFirstObjectiveRow = false;
+                        if (isFirstPlanContentRow) isFirstPlanContentRow = false;
+                        if (isFirstMetaRow) isFirstMetaRow = false;
+                        return row;
+                      });
+                    }
+                  }); // No .flat() here, handled by the outer flatMap
+                }); // No .flat() here, handled by the outer flatMap
+              })
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

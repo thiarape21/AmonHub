@@ -31,6 +31,16 @@ interface Pdf {
   proyecto_id?: number;
 }
 
+interface Tarea {
+  id?: number;
+  nombre: string;
+  responsable: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  estado: string;
+  evidencias?: File[];
+}
+
 export default function ProyectoForm({
   modo,
   proyecto = {},
@@ -62,6 +72,9 @@ export default function ProyectoForm({
   const [objetivosSmart, setObjetivosSmart] = useState<ObjetivoSmart[]>([]);
   const [nuevoSmart, setNuevoSmart] = useState<{ nombre: string; descripcion: string }>({ nombre: "", descripcion: "" });
   const [pdfs, setPdfs] = useState<File[]>([]);
+  const [tareas, setTareas] = useState<Tarea[]>([]);
+  const [showTareaModal, setShowTareaModal] = useState(false);
+  const [editTarea, setEditTarea] = useState<Tarea | null>(null);
 
   useEffect(() => {
     fetch("http://localhost:3030/api/objetivos")
@@ -216,6 +229,27 @@ export default function ProyectoForm({
     setPdfs(pdfs.filter((_, i) => i !== idx));
   };
 
+  const handleAddTarea = () => {
+    setEditTarea(null);
+    setShowTareaModal(true);
+  };
+  const handleEditTarea = (tarea: Tarea) => {
+    setEditTarea(tarea);
+    setShowTareaModal(true);
+  };
+  const handleSaveTarea = (tarea: Tarea) => {
+    if (editTarea) {
+      setTareas(tareas.map(t => t === editTarea ? tarea : t));
+    } else {
+      setTareas([...tareas, tarea]);
+    }
+    setShowTareaModal(false);
+    setEditTarea(null);
+  };
+  const handleDeleteTarea = (tarea: Tarea) => {
+    setTareas(tareas.filter(t => t !== tarea));
+  };
+
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">
       <div>
@@ -315,13 +349,17 @@ export default function ProyectoForm({
         <div className="text-xs text-gray-500">Selecciona uno o varios colaboradores registrados.</div>
       </div>
       <div>
-        <label className="block font-semibold">Estado de avance</label>
-        <select name="estado_avance" value={form.estado_avance} onChange={handleChange} className="w-full border rounded p-2">
-          <option value="">Selecciona un estado</option>
-          <option value="En proceso">En proceso</option>
-          <option value="Completado">Completado</option>
-          <option value="Pendiente">Pendiente</option>
-        </select>
+        <label className="block font-semibold">Tareas del Proyecto</label>
+        <ul className="mb-2">
+          {tareas.map((t, idx) => (
+            <li key={idx} className="flex items-center gap-2 mb-1">
+              <span>{t.nombre} ({t.responsable})</span>
+              <button type="button" className="text-blue-500" onClick={() => handleEditTarea(t)}>Editar</button>
+              <button type="button" className="text-red-500" onClick={() => handleDeleteTarea(t)}>Eliminar</button>
+            </li>
+          ))}
+        </ul>
+        <button type="button" className="bg-green-500 text-white px-2 rounded" onClick={handleAddTarea}>Agregar Tarea</button>
       </div>
       <div className="flex gap-4">
         <div className="flex-1">
@@ -333,22 +371,42 @@ export default function ProyectoForm({
           <input type="date" name="fecha_fin" value={form.fecha_fin} onChange={handleChange} className="w-full border rounded p-2" />
         </div>
       </div>
-      <div>
-        <label className="block font-semibold">Evidencias (PDFs)</label>
-        <input type="file" accept="application/pdf" multiple onChange={handlePdfChange} />
-        <ul className="mt-2">
-          {pdfs.map((file, idx) => (
-            <li key={idx} className="flex items-center gap-2">
-              <span>{file.name}</span>
-              <button type="button" className="text-red-500" onClick={() => handleRemovePdf(idx)}>Eliminar</button>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {modo === "editar" && (
+        <>
+          <div className="mb-4">
+            <label htmlFor="estado_avance" className="block text-sm font-medium text-gray-700">Estado de Avance</label>
+            <select
+              id="estado_avance"
+              name="estado_avance"
+              value={form.estado_avance}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+            >
+              <option value="">Seleccionar estado</option>
+              <option value="Finalizado">Finalizado</option>
+              <option value="Atrasado">Atrasado</option>
+              {/* Agrega aquí otras opciones si es necesario en el futuro, pero solo 'Finalizado' y 'Atrasado' por ahora */}
+            </select>
+          </div>
+          <div>
+            <label className="block font-semibold">Evidencias (PDFs)</label>
+            <input type="file" accept="application/pdf" multiple onChange={handlePdfChange} />
+            <ul className="mt-2">
+              {pdfs.map((file, idx) => (
+                <li key={idx} className="flex items-center gap-2">
+                  <span>{file.name}</span>
+                  <button type="button" className="text-red-500" onClick={() => handleRemovePdf(idx)}>Eliminar</button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
       <div className="flex justify-end gap-2 mt-6">
         <CustomButton type="button" variant="outline" onClick={onCancel}>Atrás</CustomButton>
         <CustomButton type="submit" disabled={loading}>{modo === "crear" ? "Crear" : "Guardar"}</CustomButton>
       </div>
+      <TareaModal show={showTareaModal} onClose={() => setShowTareaModal(false)} tarea={editTarea || undefined} onSave={handleSaveTarea} usuarios={usuarios} />
       {showObjetivoForm && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <form onSubmit={handleCrearObjetivo} className="bg-white p-6 rounded shadow-lg w-full max-w-md">
@@ -369,5 +427,181 @@ export default function ProyectoForm({
         </div>
       )}
     </form>
+  );
+}
+
+function TareaModal({
+  show,
+  onClose,
+  tarea,
+  onSave,
+  usuarios
+}: {
+  show: boolean;
+  onClose: () => void;
+  tarea?: Tarea;
+  onSave: (t: Tarea) => void;
+  usuarios: { id: string; full_name: string }[];
+}) {
+  const [formTarea, setFormTarea] = useState<Tarea>(tarea || {
+    nombre: "",
+    responsable: "",
+    fecha_inicio: "",
+    fecha_fin: "",
+    estado: "Pendiente",
+    evidencias: [], // Initialize evidencias as an empty array
+  });
+
+  // Clear form when modal is shown for creating a new task
+  useEffect(() => {
+    if (show && !tarea) {
+      setFormTarea({
+        nombre: "",
+        responsable: "",
+        fecha_inicio: "",
+        fecha_fin: "",
+        estado: "Pendiente",
+        evidencias: [],
+      });
+    }
+    if (show && tarea) {
+        // If editing and tarea has existing evidence data (URLs), you might fetch and display them here
+        // For now, we'll just initialize with any new files the user might select
+        setFormTarea({...tarea, evidencias: []}); // Reset file input when opening for edit
+    }
+  }, [show, tarea]);
+
+  const handleChangeTarea = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormTarea({ ...formTarea, [e.target.name]: e.target.value });
+  };
+
+  const handleSave = () => {
+    // Add validation here if needed
+    onSave(formTarea);
+  };
+
+  const handleEvidenciaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      // Append new files to the existing evidencias array
+      setFormTarea({ ...formTarea, evidencias: [...(formTarea.evidencias || []), ...Array.from(e.target.files)] });
+    }
+  };
+
+   const handleRemoveEvidencia = (idx: number) => {
+    setFormTarea({ ...formTarea, evidencias: (formTarea.evidencias || []).filter((_, i) => i !== idx) });
+  };
+
+  if (!show) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/30 backdrop-blur-sm">
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-4 text-[#546b75]">{tarea ? "Editar Tarea" : "Crear Tarea"}</h2>
+        <div className="mb-4">
+          <label htmlFor="nombreTarea" className="block text-sm font-medium text-gray-700">Nombre</label>
+          <input
+            type="text"
+            id="nombreTarea"
+            name="nombre"
+            value={formTarea.nombre}
+            onChange={handleChangeTarea}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+            required
+          />
+        </div>
+        <div className="mb-4">
+          <label htmlFor="responsableTarea" className="block text-sm font-medium text-gray-700">Responsable</label>
+          <select
+            id="responsableTarea"
+            name="responsable"
+            value={formTarea.responsable}
+            onChange={handleChangeTarea}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+            required
+          >
+            <option value="">Seleccione un responsable</option>
+            {usuarios.map(user => (
+              <option key={user.id} value={user.full_name}>{user.full_name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="mb-4">
+          <label htmlFor="fechaInicioTarea" className="block text-sm font-medium text-gray-700">Fecha Inicio</label>
+          <input
+            type="date"
+            id="fechaInicioTarea"
+            name="fecha_inicio"
+            value={formTarea.fecha_inicio}
+            onChange={handleChangeTarea}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+            required
+          />
+        </div>
+        <div className="mb-4">
+          <label htmlFor="fechaFinTarea" className="block text-sm font-medium text-gray-700">Fecha Fin</label>
+          <input
+            type="date"
+            id="fechaFinTarea"
+            name="fecha_fin"
+            value={formTarea.fecha_fin}
+            onChange={handleChangeTarea}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+            required
+          />
+        </div>
+         {/* Mostrar estado solo en modo edición de tarea */}
+        {tarea && (
+           <div className="mb-4">
+             <label htmlFor="estadoTarea" className="block text-sm font-medium text-gray-700">Estado</label>
+             <select
+               id="estadoTarea"
+               name="estado"
+               value={formTarea.estado}
+               onChange={handleChangeTarea}
+               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+               required
+             >
+               <option value="Pendiente">Pendiente</option>
+               <option value="En proceso">En proceso</option>
+               <option value="Completada">Completada</option>
+             </select>
+           </div>
+        )}
+        
+        {/* Mostrar campo de evidencia solo en modo edición de tarea */}
+        {tarea && (
+            <div className="mb-4">
+              <label htmlFor="evidenciaTarea" className="block text-sm font-medium text-gray-700">Evidencia (PDF)</label>
+              <input
+                type="file"
+                id="evidenciaTarea"
+                name="evidencia"
+                accept=".pdf"
+                onChange={handleEvidenciaChange}
+                className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#4A6670] file:text-white hover:file:bg-[#39525a]"
+              />
+               {/* Display selected file names */}
+               {(formTarea.evidencias || []).length > 0 && (
+                 <div className="mt-2">
+                   <p className="text-sm font-medium text-gray-700">Archivos seleccionados:</p>
+                   <ul>
+                     {(formTarea.evidencias || []).map((file, index) => (
+                       <li key={index} className="text-sm text-gray-600 flex justify-between items-center">
+                         {file.name}
+                         <CustomButton size="sm" variant="destructive" onClick={() => handleRemoveEvidencia(index)}>Remover</CustomButton>
+                       </li>
+                     ))}
+                   </ul>
+                 </div>
+               )}
+            </div>
+        )}
+
+        <div className="flex justify-end space-x-2 mt-4">
+          <CustomButton variant="outline" onClick={onClose}>Cancelar</CustomButton>
+          <CustomButton onClick={handleSave}>Guardar Tarea</CustomButton>
+        </div>
+      </div>
+    </div>
   );
 } 

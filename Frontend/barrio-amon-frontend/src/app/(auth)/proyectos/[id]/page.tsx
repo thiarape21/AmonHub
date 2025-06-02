@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { CustomButton } from "@/components/ui/custom-button";
+import ProyectoForm from "@/components/proyectos/ProyectoForm";
 
 interface Proyecto {
   id?: number;
@@ -37,41 +38,82 @@ interface ObjetivoSmart {
 export default function ProyectoDetallePage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const { id } = params;
+  const isEditing = searchParams.get('edit') === '1';
+
   const [proyecto, setProyecto] = useState<Proyecto | null>(null);
   const [objetivo, setObjetivo] = useState<Objetivo | null>(null);
   const [objetivosSmart, setObjetivosSmart] = useState<ObjetivoSmart[]>([]);
+  // Estados para tareas y pdfs en modo edición
+  const [tareas, setTareas] = useState<any[]>([]); // Usar any[] temporalmente si la interfaz Tarea no está aquí
+  const [pdfs, setPdfs] = useState<{ name: string; url?: string }[]>([]);
 
   useEffect(() => {
     if (!id) return;
-    fetch(`http://localhost:3030/api/proyectos/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setProyecto(data);
-        if (data?.objetivo_id) {
-          fetch(`http://localhost:3030/api/objetivos`)
-            .then((res) => res.json())
-            .then((objetivos) => {
-              if (Array.isArray(objetivos)) {
-                const obj = objetivos.find((o: Objetivo) => o.id === data.objetivo_id);
-                setObjetivo(obj || null);
-              }
-            });
-        }
-      });
 
-    // Fetch SMART objectives
-    fetch(`http://localhost:3030/api/proyectos/${id}/objetivos-smart`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setObjetivosSmart(data);
-        }
-      });
-  }, [id]);
+    // Fetch data based on mode
+    if (isEditing) {
+      // Fetch all data needed for editing
+      fetch(`http://localhost:3030/api/proyectos/${id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setProyecto(data);
+          // Aquí también deberías cargar tareas y pdfs si tu API los devuelve con el proyecto principal
+          setTareas(data?.tareas || []);
+          setPdfs(data?.pdfs || []);
+        });
+       // También podrías necesitar fetchear objetivos y usuarios aquí si ProyectoForm los necesita
+       // ... fetch objetivos ...
+       // ... fetch usuarios ...
+
+    } else {
+      // Fetch data needed for detail view
+      fetch(`http://localhost:3030/api/proyectos/${id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setProyecto(data);
+          if (data?.objetivo_id) {
+            fetch(`http://localhost:3030/api/objetivos`)
+              .then((res) => res.json())
+              .then((objetivos) => {
+                if (Array.isArray(objetivos)) {
+                  const obj = objetivos.find((o: Objetivo) => o.id === data.objetivo_id);
+                  setObjetivo(obj || null);
+                }
+              });
+          }
+        });
+
+      // Fetch SMART objectives for detail view
+      fetch(`http://localhost:3030/api/proyectos/${id}/objetivos-smart`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setObjetivosSmart(data);
+          }
+        });
+    }
+  }, [id, isEditing]); // Dependencia de isEditing para re-ejecutar el efecto al cambiar el modo
 
   if (!proyecto) return <div className="p-8 text-center">Cargando...</div>;
 
+  // Renderizar el formulario de edición si está en modo edición
+  if (isEditing) {
+    return (
+      <div className="container mx-auto py-8">
+        <h1 className="text-4xl font-bold text-center mb-6 text-[#546b75]">Editar Proyecto</h1>
+        <ProyectoForm
+          modo="editar"
+          proyecto={proyecto} // Pasa el objeto proyecto directamente
+          onCancel={() => router.push(`/proyectos/${id}`)} // Volver a la vista de detalle
+          onSave={() => router.push("/proyectos/lista")} // Volver a la lista después de guardar
+        />
+      </div>
+    );
+  }
+
+  // Renderizar la vista de detalle si no está en modo edición
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-4xl font-bold text-center mb-6 text-[#546b75]">Detalle del Proyecto</h1>
