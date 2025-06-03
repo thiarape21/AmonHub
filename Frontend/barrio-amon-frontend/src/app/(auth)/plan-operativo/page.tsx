@@ -17,6 +17,7 @@ interface Meta {
   estado: string;
   actividades?: Activity[];
   cancelReason?: string;
+  indicadores?: Indicator[];
 }
 
 interface Activity {
@@ -25,6 +26,11 @@ interface Activity {
   isCompleted: boolean;
   isCanceled: boolean;
   cancelReason?: string;
+}
+
+interface Indicator {
+  type: 'link' | 'file';
+  value: string;
 }
 
 interface Option {
@@ -103,9 +109,12 @@ export default function PlanOperativoPage() {
     fechaLimite: "",
     estado: "Pendiente",
     actividades: [],
+    indicadores: [],
   });
   const [nuevaActividad, setNuevaActividad] = useState("");
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [newIndicatorLink, setNewIndicatorLink] = useState('');
+  const [newIndicatorFiles, setNewIndicatorFiles] = useState<File[]>([]);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
@@ -126,8 +135,10 @@ export default function PlanOperativoPage() {
     }
     setShowForm(false);
     setEditMeta(null);
-    setNuevaMeta({ descripcion: "", objetivos: [], responsable: "", fechaLimite: "", estado: "Pendiente", actividades: [] });
+    setNuevaMeta({ descripcion: "", objetivos: [], responsable: "", fechaLimite: "", estado: "Pendiente", actividades: [], indicadores: [] });
     setNuevaActividad("");
+    setNewIndicatorLink('');
+    setNewIndicatorFiles([]);
   };
 
   const handleEdit = (meta: Meta) => {
@@ -139,8 +150,11 @@ export default function PlanOperativoPage() {
       fechaLimite: meta.fechaLimite,
       estado: meta.estado,
       actividades: meta.actividades || [],
+      indicadores: meta.indicadores || [],
     });
     setShowForm(true);
+    setNewIndicatorLink('');
+    setNewIndicatorFiles([]);
   };
 
   const handleDelete = (id: string) => {
@@ -175,6 +189,35 @@ export default function PlanOperativoPage() {
     }));
   };
 
+  const handleAddIndicatorLink = () => {
+    if (newIndicatorLink.trim()) {
+      setNuevaMeta(prev => ({
+        ...prev,
+        indicadores: [...(prev.indicadores || []), { type: 'link', value: newIndicatorLink.trim() }]
+      }));
+      setNewIndicatorLink('');
+    }
+  };
+
+  const handleAddIndicatorFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      const fileIndicators: Indicator[] = filesArray.map(file => ({ type: 'file', value: file.name }));
+      setNuevaMeta(prev => ({
+        ...prev,
+        indicadores: [...(prev.indicadores || []), ...fileIndicators]
+      }));
+      setNewIndicatorFiles(prev => [...prev, ...filesArray]);
+    }
+  };
+
+  const handleRemoveIndicator = (indexToRemove: number) => {
+    setNuevaMeta(prev => ({
+      ...prev,
+      indicadores: (prev.indicadores || []).filter((_, index) => index !== indexToRemove)
+    }));
+  };
+
   const filteredMetas = metas.filter(meta => {
     console.warn("Filtering by year is not fully implemented as Meta interface lacks a year property.");
     return true;
@@ -188,8 +231,10 @@ export default function PlanOperativoPage() {
         <CustomButton onClick={() => {
           setShowForm(true);
           setEditMeta(null);
-          setNuevaMeta({ descripcion: "", objetivos: [], responsable: "", fechaLimite: "", estado: "Pendiente", actividades: [] });
+          setNuevaMeta({ descripcion: "", objetivos: [], responsable: "", fechaLimite: "", estado: "Pendiente", actividades: [], indicadores: [] });
           setNuevaActividad("");
+          setNewIndicatorLink('');
+          setNewIndicatorFiles([]);
         }}>Agregar Meta</CustomButton>
       </div>
       <div className="mb-8">
@@ -204,6 +249,7 @@ export default function PlanOperativoPage() {
                 <th className="border border-gray-300 py-2 px-4 text-left">Responsable</th>
                 <th className="border border-gray-300 py-2 px-4 text-left">Fecha Límite</th>
                 <th className="border border-gray-300 py-2 px-4 text-left">Estado</th>
+                <th className="border border-gray-300 py-2 px-4 text-left">Indicadores</th>
                 <th className="border border-gray-300 py-2 px-4 text-left">Acciones</th>
               </tr>
             </thead>
@@ -241,6 +287,30 @@ export default function PlanOperativoPage() {
                     <td className="border border-gray-300 py-2 px-4 text-sm">{meta.responsable}</td>
                     <td className="border border-gray-300 py-2 px-4 text-sm">{meta.fechaLimite}</td>
                     <td className="border border-gray-300 py-2 px-4 text-sm">{status}</td>
+                    <td className="border border-gray-300 py-2 px-4 text-sm">
+                      {(meta.indicadores && meta.indicadores.length > 0) ? (
+                        <ul className="list-disc list-inside">
+                          {meta.indicadores.map((indicator, idx) => (
+                            <li key={idx} className="text-sm">
+                              {indicator.type === 'link' ? (
+                                <a href={indicator.value} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{indicator.value}</a>
+                              ) : (
+                                <a
+                                  href={`/uploads/${indicator.value}`}
+                                  download={indicator.type === 'file'}
+                                  className="text-blue-600 hover:underline"
+                                  target="_blank"
+                                >
+                                  {indicator.value}
+                                </a>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        'Sin evidencias'
+                      )}
+                    </td>
                     <td className="border border-gray-300 py-2 px-4 text-sm">
                       <CustomButton variant="outline" size="sm" onClick={() => handleEdit(meta)} className="mr-2">Editar</CustomButton>
                     </td>
@@ -349,6 +419,57 @@ export default function PlanOperativoPage() {
                 {(nuevaMeta.actividades || []).length === 0 && <li className="text-sm text-gray-500">- No hay actividades agregadas -</li>}
               </ul>
             </div>
+
+            {/* Indicadores Section */}
+            <div className="mb-4">
+              <label className="block font-semibold mb-1">Indicadores</label>
+              {/* Add Link Input */}
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  className="border rounded p-2 flex-1"
+                  placeholder="Agregar enlace de indicador..."
+                  value={newIndicatorLink}
+                  onChange={e => setNewIndicatorLink(e.target.value)}
+                />
+                <CustomButton type="button" onClick={handleAddIndicatorLink}>Agregar Enlace</CustomButton>
+              </div>
+              {/* Add File Input */}
+              <div className="mb-2">
+                 <label className="block text-sm font-medium text-gray-700">Subir PDF:</label>
+                 <input
+                   type="file"
+                   accept=".pdf"
+                   onChange={handleAddIndicatorFiles}
+                   className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#4A6670] file:text-white hover:file:bg-[#39525a]"
+                 />
+              </div>
+
+              {/* List of Indicators */}
+              <ul className="list-disc list-inside">
+                {(nuevaMeta.indicadores || []).map((indicator, idx) => (
+                  <li key={idx} className="flex justify-between items-center border-b last:border-b-0 py-1">
+                    <span className="text-sm">
+                      {indicator.type === 'link' ? (
+                        <a href={indicator.value} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{indicator.value}</a>
+                      ) : (
+                        <a
+                          href={`/uploads/${indicator.value}`}
+                          download={indicator.type === 'file'}
+                          className="text-blue-600 hover:underline"
+                          target="_blank"
+                        >
+                          {indicator.value}
+                        </a>
+                      )}
+                    </span>
+                    <CustomButton variant="destructive" size="sm" onClick={() => handleRemoveIndicator(idx)}>Eliminar</CustomButton>
+                  </li>
+                ))}
+                {!(nuevaMeta.indicadores || []).length && <li className="text-sm text-gray-500">- No hay indicadores agregados -</li>}
+              </ul>
+            </div>
+
             <div className="mb-4">
               <label className="block font-semibold mb-1">Responsable</label>
               <select
