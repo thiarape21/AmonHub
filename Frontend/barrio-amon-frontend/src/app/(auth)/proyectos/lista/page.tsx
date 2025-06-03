@@ -10,6 +10,35 @@ interface Objetivo {
   nombre: string;
 }
 
+// Utility function to determine project status based on tasks
+function getProjectStatus(tareas: Proyecto['tareas']): string {
+  if (!tareas || tareas.length === 0) {
+    return "Pendiente";
+  }
+
+  const totalTasks = tareas.length;
+  const completedTasks = tareas.filter(tarea => tarea.estado === 'Completada').length;
+  const canceledTasks = tareas.filter(tarea => tarea.estado === 'Cancelada').length;
+  const inProgressOrPendingTasks = tareas.filter(tarea => tarea.estado === 'En proceso' || tarea.estado === 'Pendiente').length;
+
+  if (canceledTasks === totalTasks) {
+    return "Cancelado";
+  } else if (canceledTasks > 0) {
+     // If some are canceled, and all non-canceled are completed
+     if (completedTasks + canceledTasks === totalTasks) {
+       return "Completada (con cancelaciones)";
+     } else {
+        return "En proceso (con cancelaciones)"; // Or another appropriate mixed status
+     }
+  } else if (completedTasks === totalTasks) {
+    return "Completada";
+  } else if (inProgressOrPendingTasks > 0) {
+    return "En proceso";
+  } else {
+     return "Pendiente"; // Should not reach here if tasks exist but none are in above states
+  }
+}
+
 export default function ProyectosListaPage() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
@@ -85,21 +114,29 @@ export default function ProyectosListaPage() {
           responsable: "Ana Gómez",
           fecha_inicio: "2024-06-01",
           fecha_fin: "2024-06-15",
-          estado: "Completada"
+          estado: "Completada" as "Completada",
         },
         {
           nombre: "Contratar empresa constructora",
           responsable: "Juan Pérez",
           fecha_inicio: "2024-06-16",
           fecha_fin: "2024-07-01",
-          estado: "En proceso"
+          estado: "En proceso" as "En proceso",
         },
         {
           nombre: "Supervisar la instalación de luminarias",
           responsable: "Carlos Ruiz",
           fecha_inicio: "2024-07-10",
           fecha_fin: "2024-08-01",
-          estado: "Pendiente"
+          estado: "Pendiente" as "Pendiente",
+        },
+        {
+          nombre: "Tarea Cancelada Ejemplo",
+          responsable: "María López",
+          fecha_inicio: "2024-07-10",
+          fecha_fin: "2024-08-01",
+          estado: "Cancelada" as "Cancelada",
+          cancelReason: "Recursos insuficientes",
         }
       ]
     }
@@ -116,26 +153,52 @@ export default function ProyectosListaPage() {
           <table className="min-w-full bg-white">
             <thead className="bg-[#4A6670] text-white">
               <tr>
-                <th className="py-2 px-4 text-center">Nombre</th>
-                <th className="py-2 px-4 text-center">Objetivo</th>
-                <th className="py-2 px-4 text-center">Responsable</th>
-                <th className="py-2 px-4 text-center">Estado</th>
+                <th className="py-2 px-4 text-left">Objetivo Estratégico Asociado</th>
+                <th className="py-2 px-4 text-left">Nombre</th>
+                <th className="py-2 px-4 text-left">Descripción</th>
+                <th className="py-2 px-4 text-left">Responsable</th>
+                <th className="py-2 px-4 text-left">Colaboradores</th>
+                <th className="py-2 px-4 text-left">Tareas</th>
+                <th className="py-2 px-4 text-left">Fecha de inicio</th>
+                <th className="py-2 px-4 text-left">Fecha de fin</th>
+                <th className="py-2 px-4 text-left">Estado</th>
                 <th className="py-2 px-4 text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {(proyectos.length > 0 ? proyectos : proyectosEjemplo).map((proyecto) => {
                 const objetivo = objetivos.find(o => o.id === proyecto.objetivo_id);
+                // Determine project status based on tasks
+                const projectStatus = getProjectStatus(proyecto.tareas);
                 return (
                   <tr key={proyecto.id} className="border-b">
-                    <td className="py-2 px-4 text-center">{proyecto.nombre}</td>
-                    <td className="py-2 px-4 text-center">{objetivo ? objetivo.nombre : <span className="text-gray-400 italic">Sin objetivo</span>}</td>
-                    <td className="py-2 px-4 text-center">{proyecto.responsable}</td>
-                    <td className="py-2 px-4 text-center">{proyecto.estado_avance}</td>
+                    <td className="py-2 px-4 text-left">{objetivo ? objetivo.nombre : <span className="text-gray-400 italic">Sin objetivo</span>}</td>
+                    <td className="py-2 px-4 text-left">{proyecto.nombre}</td>
+                    <td className="py-2 px-4 text-left text-sm">{proyecto.descripcion}</td>
+                    <td className="py-2 px-4 text-left text-sm">{proyecto.responsable}</td>
+                    <td className="py-2 px-4 text-left text-sm">{proyecto.colaboradores}</td>
+                    <td className="py-2 px-4 text-left text-sm">
+                      {/* Display tasks */}
+                      {proyecto.tareas && proyecto.tareas.length > 0 ? (
+                        <ul className="list-disc list-inside">
+                          {proyecto.tareas.map((tarea, idx) => (
+                            <li key={idx} className={`${tarea.estado === 'Completada' ? 'text-green-600' : tarea.estado === 'Cancelada' ? 'text-red-600 line-through' : ''}`}>
+                              {tarea.nombre}
+                               {tarea.estado === 'Cancelada' && tarea.cancelReason && (
+                                 <span className="text-red-600 text-xs ml-1">({tarea.cancelReason})</span>
+                               )}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        '- N/A -'
+                      )}
+                    </td>
+                    <td className="py-2 px-4 text-left text-sm">{proyecto.fecha_inicio}</td>
+                    <td className="py-2 px-4 text-left text-sm">{proyecto.fecha_fin}</td>
+                    <td className="py-2 px-4 text-left text-sm">{projectStatus}</td>
                     <td className="py-2 px-4 text-center space-x-2">
-                      <CustomButton size="sm" variant="outline" onClick={() => router.push(`/proyectos/${proyecto.id}`)}>Ver</CustomButton>
                       <CustomButton size="sm" variant="outline" onClick={() => handleEditClick(proyecto)}>Editar</CustomButton>
-                      <CustomButton size="sm" variant="destructive" onClick={() => handleDelete(proyecto.id!)}>Eliminar</CustomButton>
                     </td>
                   </tr>
                 );

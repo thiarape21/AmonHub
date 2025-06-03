@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { CustomButton } from "@/components/ui/custom-button";
+import Select from 'react-select';
 
 interface Objetivo {
   id: string;
@@ -14,6 +15,21 @@ interface Meta {
   responsable: string;
   fechaLimite: string;
   estado: string;
+  actividades?: Activity[];
+  cancelReason?: string;
+}
+
+interface Activity {
+  id: string;
+  description: string;
+  isCompleted: boolean;
+  isCanceled: boolean;
+  cancelReason?: string;
+}
+
+interface Option {
+  value: string;
+  label: string;
 }
 
 // Datos en duro para objetivos
@@ -32,6 +48,11 @@ const metasEjemplo: Meta[] = [
     responsable: "Comité Ambiental",
     fechaLimite: "2024-07-30",
     estado: "Pendiente",
+    actividades: [
+      { id: "a1", description: "Organizar 4 jornadas de recolección", isCompleted: false, isCanceled: false },
+      { id: "a2", description: "Coordinar voluntarios", isCompleted: false, isCanceled: false },
+      { id: "a3", description: "Disponer de los residuos correctamente", isCompleted: false, isCanceled: false },
+    ],
   },
   {
     id: "m2",
@@ -40,6 +61,11 @@ const metasEjemplo: Meta[] = [
     responsable: "Comité Ambiental",
     fechaLimite: "2024-08-15",
     estado: "En progreso",
+    actividades: [
+      { id: "a4", description: "Diseñar material didáctico", isCompleted: true, isCanceled: false },
+      { id: "a5", description: "Programar 2 charlas", isCompleted: false, isCanceled: false },
+      { id: "a6", description: "Convocar a la comunidad", isCompleted: false, isCanceled: false },
+    ],
   },
   {
     id: "m3",
@@ -48,8 +74,23 @@ const metasEjemplo: Meta[] = [
     responsable: "Municipalidad",
     fechaLimite: "2024-09-01",
     estado: "Pendiente",
+    actividades: [
+      { id: "a7", description: "Identificar 10 ubicaciones clave", isCompleted: false, isCanceled: false },
+      { id: "a8", description: "Comprar 10 basureros", isCompleted: false, isCanceled: false },
+      { id: "a9", description: "Instalar basureros en las ubicaciones", isCompleted: false, isCanceled: false },
+    ],
   },
 ];
+
+// Mock user data (replace with actual fetch if needed)
+const usuariosEjemplo = [
+    { id: "user1", full_name: "Juan Pérez" },
+    { id: "user2", full_name: "Ana Gómez" },
+    { id: "user3", full_name: "Carlos Ruiz" },
+    { id: "user4", full_name: "María López" },
+    { id: "user5", full_name: "Pedro Sánchez" },
+    { id: "user6", full_name: "Lucía Torres" },
+  ];
 
 export default function PlanOperativoPage() {
   const [metas, setMetas] = useState<Meta[]>(metasEjemplo);
@@ -61,7 +102,13 @@ export default function PlanOperativoPage() {
     responsable: "",
     fechaLimite: "",
     estado: "Pendiente",
+    actividades: [],
   });
+  const [nuevaActividad, setNuevaActividad] = useState("");
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -79,7 +126,8 @@ export default function PlanOperativoPage() {
     }
     setShowForm(false);
     setEditMeta(null);
-    setNuevaMeta({ descripcion: "", objetivos: [], responsable: "", fechaLimite: "", estado: "Pendiente" });
+    setNuevaMeta({ descripcion: "", objetivos: [], responsable: "", fechaLimite: "", estado: "Pendiente", actividades: [] });
+    setNuevaActividad("");
   };
 
   const handleEdit = (meta: Meta) => {
@@ -90,6 +138,7 @@ export default function PlanOperativoPage() {
       responsable: meta.responsable,
       fechaLimite: meta.fechaLimite,
       estado: meta.estado,
+      actividades: meta.actividades || [],
     });
     setShowForm(true);
   };
@@ -99,53 +148,109 @@ export default function PlanOperativoPage() {
     setMetas(metas.filter(m => m.id !== id));
   };
 
+  const handleActivityCompletionToggle = (activityId: string) => {
+    setNuevaMeta(prev => ({
+      ...prev,
+      actividades: (prev.actividades || []).map(act =>
+        act.id === activityId ? { ...act, isCompleted: !act.isCompleted, isCanceled: act.isCompleted ? act.isCanceled : false, cancelReason: act.isCompleted ? act.cancelReason : '' } : act
+      ),
+    }));
+  };
+
+  const handleActivityCancellation = (activityId: string) => {
+    setNuevaMeta(prev => ({
+      ...prev,
+      actividades: (prev.actividades || []).map(act =>
+        act.id === activityId ? { ...act, isCanceled: true, isCompleted: false } : act
+      ),
+    }));
+  };
+
+  const handleActivityReasonChange = (activityId: string, reason: string) => {
+    setNuevaMeta(prev => ({
+      ...prev,
+      actividades: (prev.actividades || []).map(act =>
+        act.id === activityId ? { ...act, cancelReason: reason } : act
+      ),
+    }));
+  };
+
+  const filteredMetas = metas.filter(meta => {
+    console.warn("Filtering by year is not fully implemented as Meta interface lacks a year property.");
+    return true;
+  });
+
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-4xl font-bold text-center mb-6 text-[#546b75]">Plan Operativo Anual 2024</h1>
+      <h1 className="text-4xl font-bold text-center mb-6 text-[#546b70]">Plan Operativo Anual {selectedYear}</h1>
+
       <div className="flex justify-end mb-4">
         <CustomButton onClick={() => {
           setShowForm(true);
           setEditMeta(null);
-          setNuevaMeta({ descripcion: "", objetivos: [], responsable: "", fechaLimite: "", estado: "Pendiente" });
+          setNuevaMeta({ descripcion: "", objetivos: [], responsable: "", fechaLimite: "", estado: "Pendiente", actividades: [] });
+          setNuevaActividad("");
         }}>Agregar Meta</CustomButton>
       </div>
       <div className="mb-8">
         <h2 className="text-2xl font-bold mb-4">Metas del Plan Operativo</h2>
-        <table className="min-w-full bg-white rounded shadow">
-          <thead>
-            <tr>
-              <th className="py-2 px-4 border-b">Descripción</th>
-              <th className="py-2 px-4 border-b">Objetivos Asociados</th>
-              <th className="py-2 px-4 border-b">Responsable</th>
-              <th className="py-2 px-4 border-b">Fecha Límite</th>
-              <th className="py-2 px-4 border-b">Estado</th>
-              <th className="py-2 px-4 border-b">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {metas.map(meta => (
-              <tr key={meta.id} className="hover:bg-gray-50">
-                <td className="py-2 px-4 border-b">{meta.descripcion}</td>
-                <td className="py-2 px-4 border-b">
-                  {meta.objetivos.map(oid => (
-                    <span key={oid} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs mr-1">
-                      {objetivosEjemplo.find(o => o.id === oid)?.descripcion}
-                    </span>
-                  ))}
-                </td>
-                <td className="py-2 px-4 border-b">{meta.responsable}</td>
-                <td className="py-2 px-4 border-b">{meta.fechaLimite}</td>
-                <td className="py-2 px-4 border-b">{meta.estado}</td>
-                <td className="py-2 px-4 border-b">
-                  <button className="text-blue-500 hover:text-blue-700 mr-2" onClick={() => handleEdit(meta)}>Editar</button>
-                  <button className="text-red-500 hover:text-red-700" onClick={() => handleDelete(meta.id)}>Eliminar</button>
-                </td>
+        <div className="overflow-x-auto rounded-lg shadow">
+          <table className="min-w-full bg-white border-collapse">
+            <thead>
+              <tr className="bg-[#4A6670] text-white">
+                <th className="border border-gray-300 py-2 px-4 text-left">Objetivos Asociados</th>
+                <th className="border border-gray-300 py-2 px-4 text-left">Meta (SMART)</th>
+                <th className="border border-gray-300 py-2 px-4 text-left">Actividades</th>
+                <th className="border border-gray-300 py-2 px-4 text-left">Responsable</th>
+                <th className="border border-gray-300 py-2 px-4 text-left">Fecha Límite</th>
+                <th className="border border-gray-300 py-2 px-4 text-left">Estado</th>
+                <th className="border border-gray-300 py-2 px-4 text-left">Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredMetas.map(meta => {
+                const activities = meta.actividades || [];
+                const completedActivities = activities.filter(act => act.isCompleted && !act.isCanceled);
+                const nonCanceledActivities = activities.filter(act => !act.isCanceled);
+
+                let status = 'Pendiente';
+                if (nonCanceledActivities.length > 0 && completedActivities.length === nonCanceledActivities.length) {
+                  status = 'Completada';
+                } else if (completedActivities.length > 0) {
+                  status = 'En progreso';
+                }
+
+                return (
+                  <tr key={meta.id} className="hover:bg-gray-100">
+                    <td className="border border-gray-300 py-2 px-4 text-sm">
+                      {meta.objetivos.map(oid => (
+                        <span key={oid} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs mr-1">
+                          {objetivosEjemplo.find(o => o.id === oid)?.descripcion}
+                        </span>
+                      ))}
+                    </td>
+                    <td className="border border-gray-300 py-2 px-4 text-sm">{meta.descripcion}</td>
+                    <td className="border border-gray-300 py-2 px-4 text-sm">
+                      {(meta.actividades || []).map((act, idx) => (
+                        <div key={idx} className={`text-sm ${act.isCompleted && !act.isCanceled ? 'text-green-600' : act.isCanceled ? 'line-through text-red-500' : 'text-gray-900'}`}>
+                          - {act.description}
+                        </div>
+                      ))}
+                      {(meta.actividades || []).length === 0 && '-N/A-'}
+                    </td>
+                    <td className="border border-gray-300 py-2 px-4 text-sm">{meta.responsable}</td>
+                    <td className="border border-gray-300 py-2 px-4 text-sm">{meta.fechaLimite}</td>
+                    <td className="border border-gray-300 py-2 px-4 text-sm">{status}</td>
+                    <td className="border border-gray-300 py-2 px-4 text-sm">
+                      <CustomButton variant="outline" size="sm" onClick={() => handleEdit(meta)} className="mr-2">Editar</CustomButton>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-      {/* Modal/Formulario */}
       {showForm && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-white/30 backdrop-blur-sm">
           <form onSubmit={handleSave} className="bg-white p-6 rounded shadow-lg w-full max-w-md">
@@ -153,7 +258,29 @@ export default function PlanOperativoPage() {
               {editMeta ? "Editar Meta" : "Agregar Meta"}
             </h2>
             <div className="mb-4">
-              <label className="block font-semibold mb-1">Descripción</label>
+              <label className="block font-semibold mb-1">Objetivos Asociados</label>
+              <Select<Option, true>
+                isMulti
+                options={objetivosEjemplo.map(obj => ({ value: obj.id, label: obj.descripcion }))}
+                value={nuevaMeta.objetivos
+                  .map(objId => {
+                    const objetivo = objetivosEjemplo.find(o => o.id === objId);
+                    return objetivo ? { value: objetivo.id, label: objetivo.descripcion } : null;
+                  })
+                  .filter((option): option is Option => option !== null)}
+                onChange={(selectedOptions) => {
+                  const selectedIds = selectedOptions ? selectedOptions.map(option => option.value) : [];
+                  setNuevaMeta({ ...nuevaMeta, objetivos: selectedIds });
+                }}
+                isClearable={true}
+                isSearchable={true}
+                placeholder="Seleccionar objetivos..."
+                className="w-full"
+                classNamePrefix="select"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block font-semibold mb-1">Meta (SMART)</label>
               <textarea
                 className="w-full border rounded p-2"
                 value={nuevaMeta.descripcion}
@@ -162,54 +289,78 @@ export default function PlanOperativoPage() {
               />
             </div>
             <div className="mb-4">
-              <label className="block font-semibold mb-1">Objetivos Asociados</label>
-              <select
-                className="w-full border rounded p-2"
-                multiple
-                value={nuevaMeta.objetivos}
-                onChange={e => {
-                  const selected = Array.from(e.target.selectedOptions, opt => opt.value);
-                  setNuevaMeta({ ...nuevaMeta, objetivos: selected });
-                }}
-                required
-              >
-                {objetivosEjemplo.map(obj => (
-                  <option key={obj.id} value={obj.id}>{obj.descripcion}</option>
+              <label className="block font-semibold mb-1">Actividades/Indicadores</label>
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  className="border rounded p-2 flex-1"
+                  placeholder="Agregar actividad..."
+                  value={nuevaActividad}
+                  onChange={e => setNuevaActividad(e.target.value)}
+                />
+                <CustomButton type="button" onClick={() => {
+                  if (nuevaActividad.trim()) {
+                    setNuevaMeta(prev => ({
+                      ...prev,
+                      actividades: [
+                        ...(prev.actividades || []),
+                        { id: `temp-${Date.now()}`, description: nuevaActividad.trim(), isCompleted: false, isCanceled: false }
+                      ]
+                    }));
+                    setNuevaActividad("");
+                  }
+                }}>Agregar</CustomButton>
+              </div>
+              <ul className="list-disc list-inside">
+                {(nuevaMeta.actividades || []).map((act, idx) => (
+                  <li key={act.id || idx} className="flex flex-col gap-2 border-b last:border-b-0 py-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={act.isCompleted}
+                          onChange={() => handleActivityCompletionToggle(act.id)}
+                          className="form-checkbox"
+                        />
+                        <span className={`text-sm ${act.isCompleted ? 'line-through text-gray-500' : ''} ${act.isCanceled ? 'line-through text-red-500' : ''}`}>
+                          {act.description}
+                        </span>
+                      </div>
+                      {editMeta && !act.isCompleted && !act.isCanceled && (
+                         <CustomButton variant="destructive" size="sm" onClick={() => handleActivityCancellation(act.id)}>Cancelar Actividad</CustomButton>
+                      )}
+                       {editMeta && act.isCanceled && (
+                         <span className="text-red-500 text-xs">Cancelada</span>
+                       )}
+                    </div>
+                    {editMeta && act.isCanceled && (
+                      <div className="ml-6">
+                        <label className="block font-semibold mb-1 text-sm">Razón de Cancelación:</label>
+                        <textarea
+                          className="w-full border rounded p-1 text-sm"
+                          value={act.cancelReason || ''}
+                          onChange={(e) => handleActivityReasonChange(act.id, e.target.value)}
+                          rows={2}
+                        />
+                      </div>
+                    )}
+                  </li>
                 ))}
-              </select>
-              <span className="text-xs text-gray-500">(Puedes seleccionar varios objetivos)</span>
+                {(nuevaMeta.actividades || []).length === 0 && <li className="text-sm text-gray-500">- No hay actividades agregadas -</li>}
+              </ul>
             </div>
             <div className="mb-4">
               <label className="block font-semibold mb-1">Responsable</label>
-              <input
-                type="text"
+              <select
                 className="w-full border rounded p-2"
                 value={nuevaMeta.responsable}
                 onChange={e => setNuevaMeta({ ...nuevaMeta, responsable: e.target.value })}
                 required
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block font-semibold mb-1">Fecha Límite</label>
-              <input
-                type="date"
-                className="w-full border rounded p-2"
-                value={nuevaMeta.fechaLimite}
-                onChange={e => setNuevaMeta({ ...nuevaMeta, fechaLimite: e.target.value })}
-                required
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block font-semibold mb-1">Estado</label>
-              <select
-                className="w-full border rounded p-2"
-                value={nuevaMeta.estado}
-                onChange={e => setNuevaMeta({ ...nuevaMeta, estado: e.target.value })}
-                required
               >
-                <option value="Pendiente">Pendiente</option>
-                <option value="En progreso">En progreso</option>
-                <option value="Completada">Completada</option>
+                <option value="">Seleccionar Responsable</option>
+                {usuariosEjemplo.map(user => (
+                  <option key={user.id} value={user.full_name}>{user.full_name}</option>
+                ))}
               </select>
             </div>
             <div className="flex justify-end gap-2">

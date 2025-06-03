@@ -14,6 +14,7 @@ export interface Proyecto {
   fecha_fin: string;
   colaboradores: string;
   responsable: string;
+  tareas?: Tarea[];
 }
 
 interface ObjetivoSmart {
@@ -37,8 +38,9 @@ interface Tarea {
   responsable: string;
   fecha_inicio: string;
   fecha_fin: string;
-  estado: string;
+  estado: 'Pendiente' | 'En proceso' | 'Completada' | 'Cancelada';
   evidencias?: File[];
+  cancelReason?: string;
 }
 
 export default function ProyectoForm({
@@ -62,6 +64,7 @@ export default function ProyectoForm({
     fecha_fin: proyecto.fecha_fin || "",
     colaboradores: proyecto.colaboradores || "",
     responsable: proyecto.responsable || "",
+    tareas: proyecto.tareas || [],
   });
   const [loading, setLoading] = useState(false);
   const [objetivos, setObjetivos] = useState<{ id: number; nombre: string }[]>([]);
@@ -72,7 +75,7 @@ export default function ProyectoForm({
   const [objetivosSmart, setObjetivosSmart] = useState<ObjetivoSmart[]>([]);
   const [nuevoSmart, setNuevoSmart] = useState<{ nombre: string; descripcion: string }>({ nombre: "", descripcion: "" });
   const [pdfs, setPdfs] = useState<File[]>([]);
-  const [tareas, setTareas] = useState<Tarea[]>([]);
+  const [tareas, setTareas] = useState<Tarea[]>(proyecto.tareas || []);
   const [showTareaModal, setShowTareaModal] = useState(false);
   const [editTarea, setEditTarea] = useState<Tarea | null>(null);
 
@@ -82,18 +85,30 @@ export default function ProyectoForm({
       .then((data) => {
         if (Array.isArray(data)) setObjetivos(data);
         else setObjetivos([]);
+      })
+      .catch(error => {
+        console.error("Error fetching objetivos:", error);
+        setObjetivos([]);
       });
     fetch("http://localhost:3030/api/usuarios")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setUsuarios(data);
         else setUsuarios([]);
+      })
+      .catch(error => {
+        console.error("Error fetching usuarios:", error);
+        setUsuarios([]);
       });
     if (modo === "editar" && proyecto.id) {
       fetch(`http://localhost:3030/api/proyectos/${proyecto.id}/objetivos-smart`)
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data)) setObjetivosSmart(data);
+        })
+        .catch(error => {
+          console.error("Error fetching objetivos-smart:", error);
+          setObjetivosSmart([]);
         });
 
       fetch(`http://localhost:3030/api/proyectos/${proyecto.id}/pdfs`)
@@ -102,6 +117,22 @@ export default function ProyectoForm({
           if (Array.isArray(data)) {
             // Aquí podrías manejar los PDFs existentes si es necesario
           }
+        })
+        .catch(error => {
+          console.error("Error fetching pdfs:", error);
+          // Handle PDF fetch error if needed
+        });
+
+      // Fetch existing tasks if editing
+      fetch(`http://localhost:3030/api/proyectos/${proyecto.id}/tareas`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) setTareas(data);
+          else setTareas([]);
+        })
+        .catch(error => {
+          console.error("Error fetching tasks:", error);
+          setTareas([]);
         });
     }
   }, [modo, proyecto.id]);
@@ -247,7 +278,34 @@ export default function ProyectoForm({
     setEditTarea(null);
   };
   const handleDeleteTarea = (tarea: Tarea) => {
-    setTareas(tareas.filter(t => t !== tarea));
+    // Tareas should not be deleted, only canceled.
+    // We will remove the delete functionality here.
+    // setTareas(tareas.filter(t => t !== tarea));
+    console.log("Tarea deletion is disabled. Use cancellation.");
+  };
+
+  const handleTaskCompletionToggle = (taskToToggle: Tarea) => {
+    setTareas(prev => prev.map(task =>
+      task.id === taskToToggle.id || (task.nombre === taskToToggle.nombre && !task.id && !taskToToggle.id) // Match by id or by name for unsaved tasks
+        ? { ...task, estado: task.estado === 'Completada' ? 'Pendiente' : 'Completada', isCanceled: false, cancelReason: undefined } // Toggle completed, ensure not canceled
+        : task
+    ));
+  };
+
+  const handleTaskCancellation = (taskToCancel: Tarea) => {
+     setTareas(prev => prev.map(task =>
+      task.id === taskToCancel.id || (task.nombre === taskToCancel.nombre && !task.id && !taskToCancel.id)
+        ? { ...task, estado: 'Cancelada', isCompleted: false } // Mark canceled, ensure not completed
+        : task
+    ));
+  };
+
+  const handleTaskReasonChange = (taskToUpdate: Tarea, reason: string) => {
+     setTareas(prev => prev.map(task =>
+       task.id === taskToUpdate.id || (task.nombre === taskToUpdate.nombre && !task.id && !taskToUpdate.id)
+         ? { ...task, cancelReason: reason }
+         : task
+     ));
   };
 
   return (
@@ -352,12 +410,47 @@ export default function ProyectoForm({
         <label className="block font-semibold">Tareas del Proyecto</label>
         <ul className="mb-2">
           {tareas.map((t, idx) => (
-            <li key={idx} className="flex items-center gap-2 mb-1">
-              <span>{t.nombre} ({t.responsable})</span>
-              <button type="button" className="text-blue-500" onClick={() => handleEditTarea(t)}>Editar</button>
-              <button type="button" className="text-red-500" onClick={() => handleDeleteTarea(t)}>Eliminar</button>
+            <li key={t.id || idx} className="flex flex-col gap-2 border-b last:border-b-0 py-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={t.estado === 'Completada'}
+                    onChange={() => handleTaskCompletionToggle(t)}
+                    className="form-checkbox"
+                    disabled={t.estado === 'Cancelada'} // Disable checkbox if canceled
+                  />
+                  <span className={`text-sm ${t.estado === 'Completada' ? 'line-through text-gray-500' : ''} ${t.estado === 'Cancelada' ? 'line-through text-red-500' : ''}`}>
+                    {t.nombre} ({t.responsable})
+                  </span>
+                </div>
+                 {/* Actions: Edit and Cancel (if not completed or canceled) */}
+                <div className="flex items-center gap-2">
+                  <button type="button" className="text-blue-500" onClick={() => handleEditTarea(t)}>Editar</button>
+                  {t.estado !== 'Completada' && t.estado !== 'Cancelada' && (
+                     <button type="button" className="text-red-500" onClick={() => handleTaskCancellation(t)}>Cancelar Tarea</button>
+                  )}
+                   {t.estado === 'Cancelada' && (
+                     <span className="text-red-500 text-xs">Cancelada</span>
+                   )}
+                </div>
+              </div>
+              {/* Show reason input if canceled */}
+              {t.estado === 'Cancelada' && (modo === 'editar' || !t.id) && ( // Show reason if canceled and editing or if it's a new unsaved task
+                 <div className="ml-6">
+                   <label className="block font-semibold mb-1 text-sm">Razón de Cancelación:</label>
+                   <textarea
+                     className="w-full border rounded p-1 text-sm"
+                     value={t.cancelReason || ''}
+                     onChange={(e) => handleTaskReasonChange(t, e.target.value)}
+                     rows={2}
+                   />
+                 </div>
+              )}
             </li>
           ))}
+           {/* Display message if no tasks */}
+          {tareas.length === 0 && (<li className="text-sm text-gray-500">- No hay tareas agregadas -</li>)}
         </ul>
         <button type="button" className="bg-green-500 text-white px-2 rounded" onClick={handleAddTarea}>Agregar Tarea</button>
       </div>
@@ -449,35 +542,47 @@ function TareaModal({
     fecha_inicio: "",
     fecha_fin: "",
     estado: "Pendiente",
-    evidencias: [], // Initialize evidencias as an empty array
+    evidencias: [],
+    cancelReason: undefined,
   });
 
-  // Clear form when modal is shown for creating a new task
+  // Update form state when the tarea prop changes (when editing a different task)
   useEffect(() => {
-    if (show && !tarea) {
-      setFormTarea({
-        nombre: "",
-        responsable: "",
-        fecha_inicio: "",
-        fecha_fin: "",
-        estado: "Pendiente",
-        evidencias: [],
-      });
-    }
-    if (show && tarea) {
-        // If editing and tarea has existing evidence data (URLs), you might fetch and display them here
-        // For now, we'll just initialize with any new files the user might select
-        setFormTarea({...tarea, evidencias: []}); // Reset file input when opening for edit
-    }
-  }, [show, tarea]);
+    setFormTarea(tarea || { // Reset to empty or load new tarea
+      nombre: "",
+      responsable: "",
+      fecha_inicio: "",
+      fecha_fin: "",
+      estado: "Pendiente",
+      evidencias: [],
+      cancelReason: undefined,
+    });
+  }, [tarea]); // Depend on tarea prop
 
-  const handleChangeTarea = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormTarea({ ...formTarea, [e.target.name]: e.target.value });
+  const handleChangeTarea = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const target = e.target;
+    const name = target.name;
+    const value = target.value;
+    const type = target.type;
+
+    if (type === 'checkbox' && target instanceof HTMLInputElement) {
+      const checked = target.checked;
+      setFormTarea(prev => ({
+        ...prev,
+        [name]: checked // Assuming the checkbox name corresponds to a boolean state property, e.g., isCompleted
+      }));
+    } else {
+      setFormTarea(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleSave = () => {
     // Add validation here if needed
     onSave(formTarea);
+    onClose(); // Close modal after saving
   };
 
   const handleEvidenciaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -560,11 +665,42 @@ function TareaModal({
                onChange={handleChangeTarea}
                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                required
+               disabled={formTarea.estado === 'Cancelada'} // Disable dropdown if canceled
              >
                <option value="Pendiente">Pendiente</option>
                <option value="En proceso">En proceso</option>
                <option value="Completada">Completada</option>
+               {/* 'Cancelada' state is handled by the cancel button, not this dropdown */}
+               {/* <option value="Cancelada">Cancelada</option> */}
              </select>
+           </div>
+        )}
+        
+        {/* Checkbox for completion in the modal */}
+        <div className="mb-4">
+           <label htmlFor="taskCompleted" className="block text-sm font-medium text-gray-700">Completada</label>
+           <input
+             type="checkbox"
+             id="taskCompleted"
+             checked={formTarea.estado === 'Completada'}
+             onChange={(e) => setFormTarea({...formTarea, estado: e.target.checked ? 'Completada' : 'Pendiente', cancelReason: undefined})} // Update state based on checkbox
+             className="form-checkbox"
+             disabled={formTarea.estado === 'Cancelada'} // Disable if canceled
+           />
+        </div>
+
+        {/* Show cancel reason input in modal if canceled */}
+        {formTarea.estado === 'Cancelada' && (
+           <div className="mb-4">
+             <label htmlFor="cancelReason" className="block text-sm font-medium text-gray-700">Razón de Cancelación</label>
+             <textarea
+               id="cancelReason"
+               name="cancelReason"
+               value={formTarea.cancelReason || ''}
+               onChange={handleChangeTarea}
+               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+               rows={2}
+             />
            </div>
         )}
         
