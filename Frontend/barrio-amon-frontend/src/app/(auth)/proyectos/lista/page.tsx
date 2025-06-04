@@ -11,15 +11,15 @@ interface Objetivo {
 }
 
 // Utility function to determine project status based on tasks
-function getProjectStatus(tareas: Proyecto['tareas']): string {
-  if (!tareas || tareas.length === 0) {
+function getProjectStatus(Tareas: Proyecto['tareas']): string {
+  if (!Tareas || Tareas.length === 0) {
     return "Pendiente";
   }
 
-  const totalTasks = tareas.length;
-  const completedTasks = tareas.filter(tarea => tarea.estado === 'Completada').length;
-  const canceledTasks = tareas.filter(tarea => tarea.estado === 'Cancelada').length;
-  const inProgressOrPendingTasks = tareas.filter(tarea => tarea.estado === 'En proceso' || tarea.estado === 'Pendiente').length;
+  const totalTasks = Tareas.length;
+  const completedTasks = Tareas.filter(tarea => tarea.estado === 'Completada').length;
+  const canceledTasks = Tareas.filter(tarea => tarea.estado === 'Cancelada').length;
+  const inProgressOrPendingTasks = Tareas.filter(tarea => tarea.estado === 'En proceso' || tarea.estado === 'Pendiente').length;
 
   if (canceledTasks === totalTasks) {
     return "Cancelado";
@@ -69,6 +69,7 @@ export default function ProyectosListaPage() {
           setProyectos(proyectosEjemplo as Proyecto[]); // Usar datos de ejemplo
         }
       });
+    console.log("proyectos", proyectos);
     fetch("http://localhost:3030/api/objetivos")
       .then((res) => res.json())
       .then((data) => {
@@ -108,7 +109,7 @@ export default function ProyectosListaPage() {
       fecha_fin: "2024-12-31",
       colaboradores: "Ana Gómez,Juan Pérez",
       responsable: "Carlos Ruiz",
-      tareas: [
+      Tareas: [
         {
           nombre: "Diseñar el nuevo plano de la plaza",
           responsable: "Ana Gómez",
@@ -136,14 +137,14 @@ export default function ProyectosListaPage() {
           fecha_inicio: "2024-07-10",
           fecha_fin: "2024-08-01",
           estado: "Cancelada" as "Cancelada",
-          cancelReason: "Recursos insuficientes",
+          cancel_reason: "Recursos insuficientes",
         }
       ]
     }
   ];
 
   return (
-    <div className="container mx-auto py-8">
+    <div className={`container mx-auto py-8 ${showEditModal ? 'filter blur-sm' : ''}`}>
       <div className={`${showEditModal ? 'filter blur-sm' : ''}`}>
         <h1 className="text-4xl font-bold text-center mb-6 text-[#546b75]">PROYECTOS</h1>
         <div className="flex justify-end mb-4">
@@ -169,7 +170,8 @@ export default function ProyectosListaPage() {
               {(proyectos.length > 0 ? proyectos : proyectosEjemplo).map((proyecto) => {
                 const objetivo = objetivos.find(o => o.id === proyecto.objetivo_id);
                 // Determine project status based on tasks
-                const projectStatus = getProjectStatus(proyecto.tareas);
+                const projectStatus = getProjectStatus(proyecto.Tareas);
+                console.log("proyectoxxx", proyecto);
                 return (
                   <tr key={proyecto.id} className="border-b">
                     <td className="py-2 px-4 text-left">{objetivo ? objetivo.nombre : <span className="text-gray-400 italic">Sin objetivo</span>}</td>
@@ -179,13 +181,19 @@ export default function ProyectosListaPage() {
                     <td className="py-2 px-4 text-left text-sm">{proyecto.colaboradores}</td>
                     <td className="py-2 px-4 text-left text-sm">
                       {/* Display tasks */}
-                      {proyecto.tareas && proyecto.tareas.length > 0 ? (
+                      {proyecto.Tareas && proyecto.Tareas.length > 0 ? (
                         <ul className="list-disc list-inside">
-                          {proyecto.tareas.map((tarea, idx) => (
-                            <li key={idx} className={`${tarea.estado === 'Completada' ? 'text-green-600' : tarea.estado === 'Cancelada' ? 'text-red-600 line-through' : ''}`}>
+                          {proyecto.Tareas.map((tarea, idx) => (
+                            <li 
+                              key={idx}
+                              className={`
+                                ${tarea.estado === 'Completada' ? 'text-green-600' : ''}
+                                ${tarea.estado === 'Cancelada' ? 'text-red-600 line-through' : 'text-gray-900'}
+                              `}
+                            >
                               {tarea.nombre}
-                               {tarea.estado === 'Cancelada' && tarea.cancelReason && (
-                                 <span className="text-red-600 text-xs ml-1">({tarea.cancelReason})</span>
+                               {tarea.estado === 'Cancelada' && tarea.cancel_reason && (
+                                 <span className="text-red-600 text-xs ml-1">({tarea.cancel_reason})</span>
                                )}
                             </li>
                           ))}

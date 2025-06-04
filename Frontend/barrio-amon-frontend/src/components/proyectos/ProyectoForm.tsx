@@ -40,7 +40,7 @@ interface Tarea {
   fecha_fin: string;
   estado: 'Pendiente' | 'En proceso' | 'Completada' | 'Cancelada';
   evidencias?: File[];
-  cancelReason?: string;
+  cancel_reason?: string;
 }
 
 export default function ProyectoForm({
@@ -64,7 +64,6 @@ export default function ProyectoForm({
     fecha_fin: proyecto.fecha_fin || "",
     colaboradores: proyecto.colaboradores || "",
     responsable: proyecto.responsable || "",
-    tareas: proyecto.tareas || [],
   });
   const [loading, setLoading] = useState(false);
   const [objetivos, setObjetivos] = useState<{ id: number; nombre: string }[]>([]);
@@ -75,7 +74,7 @@ export default function ProyectoForm({
   const [objetivosSmart, setObjetivosSmart] = useState<ObjetivoSmart[]>([]);
   const [nuevoSmart, setNuevoSmart] = useState<{ nombre: string; descripcion: string }>({ nombre: "", descripcion: "" });
   const [pdfs, setPdfs] = useState<File[]>([]);
-  const [tareas, setTareas] = useState<Tarea[]>(proyecto.tareas || []);
+  const [tareas, setTareas] = useState<Tarea[]>([]);
   const [showTareaModal, setShowTareaModal] = useState(false);
   const [editTarea, setEditTarea] = useState<Tarea | null>(null);
 
@@ -144,6 +143,7 @@ export default function ProyectoForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const auxTareas = tareas;
 
     try {
       const url = modo === "crear"
@@ -151,6 +151,7 @@ export default function ProyectoForm({
         : `http://localhost:3030/api/proyectos/${proyecto.id}`;
       const method = modo === "crear" ? "POST" : "PUT";
 
+      console.log("Formulario:", form);
       // Excluye tareas del objeto enviado
       const { tareas, ...formSinTareas } = form;
 
@@ -196,6 +197,32 @@ export default function ProyectoForm({
           method: "POST",
           body: formData,
         });
+      }
+
+      console.log("Tareas:", auxTareas);
+      // Guardar tareas (crear o actualizar)
+      for (const tarea of (auxTareas ?? [])) {
+        console.log("Tarea:", tarea);
+        // Elimina campos que no existen en la tabla si es necesario
+        const { id, evidencias, ...rest } = tarea;
+        const tareaData = { ...rest, proyecto_id: proyectoGuardado.id } as any;
+
+        if (!id) {
+          // Crear nueva tarea
+          await fetch(`http://localhost:3030/api/proyectos/${proyectoGuardado.id}/tareas`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(tareaData),
+          });
+        } else {
+          console.log("Actualizando tarea existente:", tareaData);
+          // Actualizar tarea existente
+          await fetch(`http://localhost:3030/api/tareas/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(tareaData),
+          });
+        }
       }
 
       setLoading(false);
@@ -286,14 +313,21 @@ export default function ProyectoForm({
   };
   const handleEditTarea = (tarea: Tarea) => {
     setEditTarea(tarea);
+    console.log("TAREA:", tarea);
     setShowTareaModal(true);
   };
   const handleSaveTarea = (tarea: Tarea) => {
+    console.log("Guardando tarea:", tarea);
+    console.log("Tarea siendo editada:", editTarea);
+    
     if (editTarea) {
-      setTareas(tareas.map(t => t === editTarea ? tarea : t));
+      setTareas(prevTareas =>
+        prevTareas.map(t => t === editTarea ? tarea : t)
+      );
     } else {
-      setTareas([...tareas, tarea]);
+      setTareas(prevTareas => [...prevTareas, tarea]);
     }
+    
     setShowTareaModal(false);
     setEditTarea(null);
   };
@@ -307,7 +341,7 @@ export default function ProyectoForm({
   const handleTaskCompletionToggle = (taskToToggle: Tarea) => {
     setTareas(prev => prev.map(task =>
       task.id === taskToToggle.id || (task.nombre === taskToToggle.nombre && !task.id && !taskToToggle.id) // Match by id or by name for unsaved tasks
-        ? { ...task, estado: task.estado === 'Completada' ? 'Pendiente' : 'Completada', isCanceled: false, cancelReason: undefined } // Toggle completed, ensure not canceled
+        ? { ...task, estado: task.estado === 'Completada' ? 'Pendiente' : 'Completada', cancel_reason: undefined } // Toggle completed, ensure not canceled
         : task
     ));
   };
@@ -315,7 +349,7 @@ export default function ProyectoForm({
   const handleTaskCancellation = (taskToCancel: Tarea) => {
      setTareas(prev => prev.map(task =>
       task.id === taskToCancel.id || (task.nombre === taskToCancel.nombre && !task.id && !taskToCancel.id)
-        ? { ...task, estado: 'Cancelada', isCompleted: false } // Mark canceled, ensure not completed
+        ? { ...task, estado: 'Cancelada'} // Mark canceled, ensure not completed
         : task
     ));
   };
@@ -323,7 +357,7 @@ export default function ProyectoForm({
   const handleTaskReasonChange = (taskToUpdate: Tarea, reason: string) => {
      setTareas(prev => prev.map(task =>
        task.id === taskToUpdate.id || (task.nombre === taskToUpdate.nombre && !task.id && !taskToUpdate.id)
-         ? { ...task, cancelReason: reason }
+         ? { ...task, cancel_reason: reason }
          : task
      ));
   };
@@ -430,6 +464,7 @@ export default function ProyectoForm({
         <label className="block font-semibold">Tareas del Proyecto</label>
         <ul className="mb-2">
           {tareas.map((t, idx) => (
+            console.log("Tarea:", t),
             <li key={t.id || idx} className="flex flex-col gap-2 border-b last:border-b-0 py-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -461,7 +496,7 @@ export default function ProyectoForm({
                    <label className="block font-semibold mb-1 text-sm">Razón de Cancelación:</label>
                    <textarea
                      className="w-full border rounded p-1 text-sm"
-                     value={t.cancelReason || ''}
+                     value={t.cancel_reason || ''}
                      onChange={(e) => handleTaskReasonChange(t, e.target.value)}
                      rows={2}
                    />
@@ -496,6 +531,8 @@ export default function ProyectoForm({
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
             >
               <option value="">Seleccionar estado</option>
+              <option value="Pendiente">Pendiente</option>
+              <option value="En proceso">En proceso</option>
               <option value="Finalizado">Finalizado</option>
               <option value="Atrasado">Atrasado</option>
               {/* Agrega aquí otras opciones si es necesario en el futuro, pero solo 'Finalizado' y 'Atrasado' por ahora */}
@@ -563,7 +600,7 @@ function TareaModal({
     fecha_fin: "",
     estado: "Pendiente",
     evidencias: [],
-    cancelReason: undefined,
+    cancel_reason: undefined,
   });
 
   // Update form state when the tarea prop changes (when editing a different task)
@@ -575,7 +612,7 @@ function TareaModal({
       fecha_fin: "",
       estado: "Pendiente",
       evidencias: [],
-      cancelReason: undefined,
+      cancel_reason: undefined,
     });
   }, [tarea]); // Depend on tarea prop
 
@@ -601,6 +638,7 @@ function TareaModal({
 
   const handleSave = () => {
     // Add validation here if needed
+    console.log("Guardando tareaxxx:", formTarea);
     onSave(formTarea);
     onClose(); // Close modal after saving
   };
@@ -703,7 +741,7 @@ function TareaModal({
              type="checkbox"
              id="taskCompleted"
              checked={formTarea.estado === 'Completada'}
-             onChange={(e) => setFormTarea({...formTarea, estado: e.target.checked ? 'Completada' : 'Pendiente', cancelReason: undefined})} // Update state based on checkbox
+             onChange={(e) => setFormTarea({...formTarea, estado: e.target.checked ? 'Completada' : 'Pendiente', cancel_reason: undefined})} // Update state based on checkbox
              className="form-checkbox"
              disabled={formTarea.estado === 'Cancelada'} // Disable if canceled
            />
@@ -712,11 +750,11 @@ function TareaModal({
         {/* Show cancel reason input in modal if canceled */}
         {formTarea.estado === 'Cancelada' && (
            <div className="mb-4">
-             <label htmlFor="cancelReason" className="block text-sm font-medium text-gray-700">Razón de Cancelación</label>
+             <label htmlFor="cancel_reason" className="block text-sm font-medium text-gray-700">Razón de Cancelación</label>
              <textarea
-               id="cancelReason"
-               name="cancelReason"
-               value={formTarea.cancelReason || ''}
+               id="cancel_reason"
+               name="cancel_reason"
+               value={formTarea.cancel_reason || ''}
                onChange={handleChangeTarea}
                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                rows={2}

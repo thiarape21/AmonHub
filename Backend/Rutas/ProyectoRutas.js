@@ -26,9 +26,10 @@ router.get('/proyectos', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('Proyectos')
-      .select('*');
+      .select('*, Tareas(*)');
     
     if (error) throw error;
+    console.log("data", data);
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -130,8 +131,30 @@ router.put('/tareas/:id', async (req, res) => {
       .eq('id', req.params.id)
       .select();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
     res.json(data[0]);
+  } catch (error) {
+    console.error('Error al actualizar la tarea:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Eliminar una tarea por su id
+router.delete('/tareas/:id', async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('Tareas')
+      .delete()
+      .eq('id', req.params.id);
+      
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
+    res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -187,10 +210,10 @@ router.delete('/proyectos/:id/objetivos-smart', async (req, res) => {
       .delete()
       .eq('proyecto_id', req.params.id);
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
-      }
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -205,7 +228,10 @@ router.delete('/objetivos-smart/:id', async (req, res) => {
       .delete()
       .eq('id', req.params.id);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: error.message });
