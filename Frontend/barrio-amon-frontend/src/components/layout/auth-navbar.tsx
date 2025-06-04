@@ -64,14 +64,6 @@ export function AuthNavbar() {
               Usuarios
             </Link>
             <NavDivider />
-            <Link href="/sandbox" className={
-              (typeof window !== 'undefined' && window.location.pathname === '/sandbox')
-                ? "hover:text-gray-300 px-3 text-[#FFB300] font-bold"
-                : "hover:text-gray-300 px-3"
-            }>
-              Sandbox
-            </Link>
-            <NavDivider />
             <button onClick={handleLogout} className="hover:text-gray-300 px-3">
               Salir
             </button>

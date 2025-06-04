@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { CustomButton } from "@/components/ui/custom-button";
+import { FileUploader } from "@/components/storage/FileUploader";
 import Select from 'react-select';
 
 interface Objetivo {
@@ -271,7 +272,7 @@ export default function PlanOperativoPage() {
   const [nuevaActividad, setNuevaActividad] = useState("");
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [newIndicatorLink, setNewIndicatorLink] = useState('');
-  const [newIndicatorFiles, setNewIndicatorFiles] = useState<File[]>([]);
+  const [uploadMessage, setUploadMessage] = useState('');
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
@@ -344,7 +345,7 @@ export default function PlanOperativoPage() {
     });
     setNuevaActividad("");
     setNewIndicatorLink('');
-    setNewIndicatorFiles([]);
+    setUploadMessage('');
   };
 
   const handleEdit = (meta: Meta) => {
@@ -361,7 +362,7 @@ export default function PlanOperativoPage() {
     });
     setShowForm(true);
     setNewIndicatorLink('');
-    setNewIndicatorFiles([]);
+    setUploadMessage('');
   };
 
   const handleDelete = async (id: string) => {
@@ -456,25 +457,35 @@ export default function PlanOperativoPage() {
     }
   };
 
-  const handleAddIndicatorFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && editMeta) {
-      const filesArray = Array.from(e.target.files);
-      
-      for (const file of filesArray) {
-        const success = await createIndicador(editMeta.id, 'file', file.name);
+  // Nueva función para manejar archivos subidos desde Supabase Storage
+  const handleFileUploadComplete = async (uploadedFiles: any[]) => {
+    if (!editMeta) {
+      setUploadMessage('Error: No se puede subir archivos sin una meta seleccionada');
+      return;
+    }
+
+    try {
+      // Guardar cada archivo subido como indicador en la base de datos
+      for (const file of uploadedFiles) {
+        const success = await createIndicador(editMeta.id, 'file', file.url);
         if (success) {
           setNuevaMeta(prev => ({
             ...prev,
-            indicadores: [...(prev.indicadores || []), { type: 'file', value: file.name }]
+            indicadores: [...(prev.indicadores || []), { type: 'file', value: file.url }]
           }));
         }
       }
       
-      setNewIndicatorFiles(prev => [...prev, ...filesArray]);
+      setUploadMessage(`${uploadedFiles.length} archivo(s) subido(s) exitosamente`);
+      setTimeout(() => setUploadMessage(''), 3000);
       
       // Actualizar también en la lista principal
       const updatedMetas = await fetchMetas();
       setMetas(updatedMetas);
+    } catch (error) {
+      console.error('Error saving file indicators:', error);
+      setUploadMessage('Error al guardar los archivos en la base de datos');
+      setTimeout(() => setUploadMessage(''), 3000);
     }
   };
 
@@ -566,12 +577,12 @@ export default function PlanOperativoPage() {
                                 <a href={indicator.value} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{indicator.value}</a>
                               ) : (
                                 <a
-                                  href={`/uploads/${indicator.value}`}
-                                  download={indicator.type === 'file'}
-                                  className="text-blue-600 hover:underline"
+                                  href={indicator.value.startsWith('http') ? indicator.value : `/uploads/${indicator.value}`}
                                   target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline"
                                 >
-                                  {indicator.value}
+                                  {indicator.value.startsWith('http') ? 'Ver archivo en la nube' : indicator.value}
                                 </a>
                               )}
                             </li>
@@ -594,7 +605,7 @@ export default function PlanOperativoPage() {
       
       {showForm && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-white/30 backdrop-blur-sm">
-          <form onSubmit={handleSave} className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <form onSubmit={handleSave} className="bg-white p-6 rounded shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h2 className="text-2xl font-bold mb-4">
               {editMeta ? "Editar Meta" : "Agregar Meta"}
             </h2>
@@ -711,11 +722,19 @@ export default function PlanOperativoPage() {
               </ul>
             </div>
 
-            {/* Indicadores Section */}
+            {/* Indicadores Section - ACTUALIZADA */}
             <div className="mb-4">
               <label className="block font-semibold mb-1">Indicadores</label>
+              
+              {/* Message Display */}
+              {uploadMessage && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-blue-800 text-sm">{uploadMessage}</p>
+                </div>
+              )}
+              
               {/* Add Link Input */}
-              <div className="flex gap-2 mb-2">
+              <div className="flex gap-2 mb-4">
                 <input
                   type="text"
                   className="border rounded p-2 flex-1"
@@ -725,40 +744,57 @@ export default function PlanOperativoPage() {
                 />
                 <CustomButton type="button" onClick={handleAddIndicatorLink}>Agregar Enlace</CustomButton>
               </div>
-              {/* Add File Input */}
-              <div className="mb-2">
-                 <label className="block text-sm font-medium text-gray-700">Subir PDF:</label>
-                 <input
-                   type="file"
-                   accept=".pdf"
-                   onChange={handleAddIndicatorFiles}
-                   className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#4A6670] file:text-white hover:file:bg-[#39525a]"
-                 />
-              </div>
+              
+              {/* File Uploader - NUEVO */}
+              {editMeta && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Subir Archivos (PDF, Imágenes, Documentos):</label>
+                  <FileUploader
+                    bucketName="archivos"
+                    folder={`metas/${editMeta.id}`}
+                    multiple={true}
+                    maxSize={10}
+                    acceptedTypes=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+                    onUploadComplete={handleFileUploadComplete}
+                    className="border-2 border-dashed border-gray-300 rounded-lg"
+                  />
+                </div>
+              )}
+              
+              {!editMeta && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-yellow-800 text-sm">💡 Para subir archivos, primero guarda la meta y luego edítala.</p>
+                </div>
+              )}
 
               {/* List of Indicators */}
-              <ul className="list-disc list-inside">
-                {(nuevaMeta.indicadores || []).map((indicator, idx) => (
-                  <li key={idx} className="flex justify-between items-center border-b last:border-b-0 py-1">
-                    <span className="text-sm">
-                      {indicator.type === 'link' ? (
-                        <a href={indicator.value} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{indicator.value}</a>
-                      ) : (
-                        <a
-                          href={`/uploads/${indicator.value}`}
-                          download={indicator.type === 'file'}
-                          className="text-blue-600 hover:underline"
-                          target="_blank"
-                        >
-                          {indicator.value}
-                        </a>
-                      )}
-                    </span>
-                    <CustomButton variant="destructive" size="sm" onClick={() => handleRemoveIndicator(idx)}>Eliminar</CustomButton>
-                  </li>
-                ))}
-                {!(nuevaMeta.indicadores || []).length && <li className="text-sm text-gray-500">- No hay indicadores agregados -</li>}
-              </ul>
+              <div className="mb-2">
+                <h4 className="font-medium text-sm mb-2">Indicadores agregados:</h4>
+                <ul className="list-disc list-inside max-h-32 overflow-y-auto border rounded p-2 bg-gray-50">
+                  {(nuevaMeta.indicadores || []).map((indicator, idx) => (
+                    <li key={idx} className="flex justify-between items-center border-b last:border-b-0 py-1">
+                      <span className="text-sm">
+                        {indicator.type === 'link' ? (
+                          <a href={indicator.value} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            🔗 {indicator.value.length > 50 ? indicator.value.substring(0, 50) + '...' : indicator.value}
+                          </a>
+                        ) : (
+                          <a
+                            href={indicator.value.startsWith('http') ? indicator.value : `/uploads/${indicator.value}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            📄 {indicator.value.startsWith('http') ? 'Archivo en la nube' : indicator.value}
+                          </a>
+                        )}
+                      </span>
+                      <CustomButton variant="destructive" size="sm" onClick={() => handleRemoveIndicator(idx)}>×</CustomButton>
+                    </li>
+                  ))}
+                  {!(nuevaMeta.indicadores || []).length && <li className="text-sm text-gray-500">- No hay indicadores agregados -</li>}
+                </ul>
+              </div>
             </div>
 
             <div className="mb-4">
