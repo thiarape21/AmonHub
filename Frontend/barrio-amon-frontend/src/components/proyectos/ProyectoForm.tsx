@@ -14,7 +14,7 @@ export interface Proyecto {
   fecha_fin: string;
   colaboradores: string;
   responsable: string;
-  tareas?: Tarea[];
+  Tareas?: Tarea[];
 }
 
 interface ObjetivoSmart {
@@ -153,7 +153,7 @@ export default function ProyectoForm({
 
       console.log("Formulario:", form);
       // Excluye tareas del objeto enviado
-      const { tareas, ...formSinTareas } = form;
+      const { Tareas, ...formSinTareas } = form;
 
       const res = await fetch(url, {
         method,

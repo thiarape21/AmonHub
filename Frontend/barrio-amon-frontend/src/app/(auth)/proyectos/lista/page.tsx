@@ -11,7 +11,7 @@ interface Objetivo {
 }
 
 // Utility function to determine project status based on tasks
-function getProjectStatus(Tareas: Proyecto['tareas']): string {
+function getProjectStatus(Tareas: Proyecto['Tareas']): string {
   if (!Tareas || Tareas.length === 0) {
     return "Pendiente";
   }
@@ -144,8 +144,8 @@ export default function ProyectosListaPage() {
   ];
 
   return (
-    <div className={`container mx-auto py-8 ${showEditModal ? 'filter blur-sm' : ''}`}>
-      <div className={`${showEditModal ? 'filter blur-sm' : ''}`}>
+    <div className="container mx-auto py-8">
+      <div>
         <h1 className="text-4xl font-bold text-center mb-6 text-[#546b75]">PROYECTOS</h1>
         <div className="flex justify-end mb-4">
           <CustomButton onClick={() => router.push("/proyectos/nuevo")}>Crear Proyecto</CustomButton>
@@ -204,7 +204,7 @@ export default function ProyectosListaPage() {
                     </td>
                     <td className="py-2 px-4 text-left text-sm">{proyecto.fecha_inicio}</td>
                     <td className="py-2 px-4 text-left text-sm">{proyecto.fecha_fin}</td>
-                    <td className="py-2 px-4 text-left text-sm">{projectStatus}</td>
+                    <td className="py-2 px-4 text-left text-sm">{proyecto.estado_avance}</td>
                     <td className="py-2 px-4 text-center space-x-2">
                       <CustomButton size="sm" variant="outline" onClick={() => handleEditClick(proyecto)}>Editar</CustomButton>
                     </td>
