@@ -586,8 +586,6 @@ router.delete("/analisis-foda/:id", async (req, res) => {
 
 // CRUD Metas
 
-
-
 // ============================================
 // PLAN OPERATIVO - RUTAS COMPLETAS
 // ============================================

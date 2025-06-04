@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "multer": "^2.0.1",
-    "react-select": "^5.10.1"
-  }
-}

@@ -363,7 +363,7 @@ export default function ProyectoForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">
+    <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4 z-50  ">
       <div>
         <label className="block font-semibold">Nombre</label>
         <input name="nombre" value={form.nombre} onChange={handleChange} className="w-full border rounded p-2" required />
