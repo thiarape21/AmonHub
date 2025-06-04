@@ -1,11 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CustomButton } from "@/components/ui/custom-button";
 import Select from 'react-select';
 
 interface Objetivo {
   id: string;
-  descripcion: string;
+  nombre: string;
 }
 
 interface Meta {
@@ -13,7 +13,8 @@ interface Meta {
   descripcion: string;
   objetivos: string[];
   responsable: string;
-  fechaLimite: string;
+  responsable_id?: number;
+  fecha_fin: string;
   estado: string;
   actividades?: Activity[];
   cancelReason?: string;
@@ -38,75 +39,231 @@ interface Option {
   label: string;
 }
 
-// Datos en duro para objetivos
-const objetivosEjemplo: Objetivo[] = [
-  { id: "o1", descripcion: "Hacer el barrio más limpio" },
-  { id: "o2", descripcion: "Fomentar la participación comunitaria" },
-  { id: "o3", descripcion: "Mejorar la seguridad del barrio" },
-];
+interface Usuario {
+  id: number;
+  full_name: string;
+}
 
-// Datos en duro para metas
-const metasEjemplo: Meta[] = [
-  {
-    id: "m1",
-    descripcion: "Recoger basura del barrio en jornadas mensuales",
-    objetivos: ["o1"],
-    responsable: "Comité Ambiental",
-    fechaLimite: "2024-07-30",
-    estado: "Pendiente",
-    actividades: [
-      { id: "a1", description: "Organizar 4 jornadas de recolección", isCompleted: false, isCanceled: false },
-      { id: "a2", description: "Coordinar voluntarios", isCompleted: false, isCanceled: false },
-      { id: "a3", description: "Disponer de los residuos correctamente", isCompleted: false, isCanceled: false },
-    ],
-  },
-  {
-    id: "m2",
-    descripcion: "Organizar charlas de concientización ambiental",
-    objetivos: ["o1", "o2"],
-    responsable: "Comité Ambiental",
-    fechaLimite: "2024-08-15",
-    estado: "En progreso",
-    actividades: [
-      { id: "a4", description: "Diseñar material didáctico", isCompleted: true, isCanceled: false },
-      { id: "a5", description: "Programar 2 charlas", isCompleted: false, isCanceled: false },
-      { id: "a6", description: "Convocar a la comunidad", isCompleted: false, isCanceled: false },
-    ],
-  },
-  {
-    id: "m3",
-    descripcion: "Instalar más basureros en espacios públicos",
-    objetivos: ["o1"],
-    responsable: "Municipalidad",
-    fechaLimite: "2024-09-01",
-    estado: "Pendiente",
-    actividades: [
-      { id: "a7", description: "Identificar 10 ubicaciones clave", isCompleted: false, isCanceled: false },
-      { id: "a8", description: "Comprar 10 basureros", isCompleted: false, isCanceled: false },
-      { id: "a9", description: "Instalar basureros en las ubicaciones", isCompleted: false, isCanceled: false },
-    ],
-  },
-];
+// ============================================
+// API FUNCTIONS
+// ============================================
 
-// Mock user data (replace with actual fetch if needed)
-const usuariosEjemplo = [
-    { id: "user1", full_name: "Juan Pérez" },
-    { id: "user2", full_name: "Ana Gómez" },
-    { id: "user3", full_name: "Carlos Ruiz" },
-    { id: "user4", full_name: "María López" },
-    { id: "user5", full_name: "Pedro Sánchez" },
-    { id: "user6", full_name: "Lucía Torres" },
-  ];
+const API_BASE_URL = "http://localhost:3030/api";
+
+// Función helper para llamadas API
+const apiCall = async (url: string, options: RequestInit = {}) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Error en API call ${url}:`, error);
+    throw error;
+  }
+};
+
+// Función para computar el estado de una meta basado en sus actividades
+const computarEstadoMeta = (actividades: Activity[] = []): string => {
+  const actividadesValidas = actividades.filter(act => !act.isCanceled);
+  const actividadesCompletadas = actividadesValidas.filter(act => act.isCompleted);
+  
+  if (actividadesValidas.length === 0) return 'Pendiente';
+  if (actividadesCompletadas.length === actividadesValidas.length) return 'Completada';
+  if (actividadesCompletadas.length > 0) return 'En progreso';
+  return 'Pendiente';
+};
+
+// API Functions para Metas
+const fetchMetas = async (): Promise<Meta[]> => {
+  try {
+    const data = await apiCall('/metas');
+    return data.map((meta: any) => ({
+      id: meta.id.toString(),
+      descripcion: meta.descripcion,
+      objetivos: meta.objetivos?.map((obj: any) => obj.objetivo.id.toString()) || [],
+      responsable: meta.responsable?.full_name || 'Sin asignar',
+      responsable_id: meta.responsable_id,
+      fecha_fin: meta.fecha_fin,
+      estado: computarEstadoMeta(meta.actividades),
+      actividades: meta.actividades || [],
+      indicadores: meta.indicadores?.map((ind: any) => ({
+        type: ind.tipo,
+        value: ind.valor
+      })) || []
+    }));
+  } catch (error) {
+    console.error('Error fetching metas:', error);
+    return [];
+  }
+};
+
+const createMeta = async (metaData: Omit<Meta, "id">): Promise<Meta | null> => {
+  try {
+    const payload = {
+      descripcion: metaData.descripcion,
+      responsable_id: metaData.responsable_id,
+      fecha_fin: metaData.fecha_fin,
+      objetivos: metaData.objetivos.map(id => parseInt(id)),
+      actividades: metaData.actividades || [],
+      indicadores: metaData.indicadores || []
+    };
+
+    const data = await apiCall('/metas', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+
+    return {
+      id: data.id.toString(),
+      descripcion: data.descripcion,
+      objetivos: data.objetivos?.map((obj: any) => obj.objetivo.id.toString()) || [],
+      responsable: data.responsable?.full_name || 'Sin asignar',
+      responsable_id: data.responsable_id,
+      fecha_fin: data.fecha_fin,
+      estado: computarEstadoMeta(data.actividades),
+      actividades: data.actividades || [],
+      indicadores: data.indicadores?.map((ind: any) => ({
+        type: ind.tipo,
+        value: ind.valor
+      })) || []
+    };
+  } catch (error) {
+    console.error('Error creating meta:', error);
+    return null;
+  }
+};
+
+const updateMeta = async (id: string, metaData: Omit<Meta, "id">): Promise<Meta | null> => {
+  try {
+    const payload = {
+      descripcion: metaData.descripcion,
+      responsable_id: metaData.responsable_id,
+      fecha_fin: metaData.fecha_fin,
+      objetivos: metaData.objetivos.map(id => parseInt(id))
+    };
+
+    const data = await apiCall(`/metas/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+
+    return {
+      id: data.id.toString(),
+      descripcion: data.descripcion,
+      objetivos: data.objetivos?.map((obj: any) => obj.objetivo.id.toString()) || [],
+      responsable: data.responsable?.full_name || 'Sin asignar',
+      responsable_id: data.responsable_id,
+      fecha_fin: data.fecha_fin,
+      estado: computarEstadoMeta(data.actividades),
+      actividades: data.actividades || [],
+      indicadores: data.indicadores?.map((ind: any) => ({
+        type: ind.tipo,
+        value: ind.valor
+      })) || []
+    };
+  } catch (error) {
+    console.error('Error updating meta:', error);
+    return null;
+  }
+};
+
+const deleteMeta = async (id: string): Promise<boolean> => {
+  try {
+    await apiCall(`/metas/${id}`, { method: 'DELETE' });
+    return true;
+  } catch (error) {
+    console.error('Error deleting meta:', error);
+    return false;
+  }
+};
+
+// API Functions para Actividades
+const updateActividad = async (id: string, actividadData: Partial<Activity>): Promise<boolean> => {
+  try {
+    await apiCall(`/actividades/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(actividadData)
+    });
+    return true;
+  } catch (error) {
+    console.error('Error updating actividad:', error);
+    return false;
+  }
+};
+
+const createActividad = async (metaId: string, description: string): Promise<Activity | null> => {
+  try {
+    const data = await apiCall(`/metas/${metaId}/actividades`, {
+      method: 'POST',
+      body: JSON.stringify({ description })
+    });
+    return data;
+  } catch (error) {
+    console.error('Error creating actividad:', error);
+    return null;
+  }
+};
+
+// API Functions para Indicadores
+const createIndicador = async (metaId: string, tipo: string, valor: string): Promise<boolean> => {
+  try {
+    await apiCall(`/metas/${metaId}/indicadores`, {
+      method: 'POST',
+      body: JSON.stringify({ tipo, valor })
+    });
+    return true;
+  } catch (error) {
+    console.error('Error creating indicador:', error);
+    return false;
+  }
+};
+
+// API Functions para Objetivos y Usuarios
+const fetchObjetivos = async (): Promise<Objetivo[]> => {
+  try {
+    const data = await apiCall('/objetivos');
+    return data.map((obj: any) => ({
+      id: obj.id.toString(),
+      nombre: obj.nombre
+    }));
+  } catch (error) {
+    console.error('Error fetching objetivos:', error);
+    return [];
+  }
+};
+
+const fetchUsuarios = async (): Promise<Usuario[]> => {
+  try {
+    const data = await apiCall('/usuarios');
+    return data;
+  } catch (error) {
+    console.error('Error fetching usuarios:', error);
+    return [];
+  }
+};
 
 export default function PlanOperativoPage() {
-  const [metas, setMetas] = useState<Meta[]>(metasEjemplo);
+  const [metas, setMetas] = useState<Meta[]>([]);
+  const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editMeta, setEditMeta] = useState<Meta | null>(null);
   const [nuevaMeta, setNuevaMeta] = useState<Omit<Meta, "id">>({
     descripcion: "",
     objetivos: [],
     responsable: "",
-    fechaLimite: "",
+    fecha_fin: "",
     estado: "Pendiente",
     actividades: [],
     indicadores: [],
@@ -119,23 +276,72 @@ export default function PlanOperativoPage() {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
-  const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
+  // Cargar datos iniciales
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [metasData, objetivosData, usuariosData] = await Promise.all([
+          fetchMetas(),
+          fetchObjetivos(),
+          fetchUsuarios()
+        ]);
+        
+        setMetas(metasData);
+        setObjetivos(objetivosData);
+        setUsuarios(usuariosData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!nuevaMeta.descripcion || nuevaMeta.objetivos.length === 0) return;
-    if (editMeta) {
-      setMetas(metas.map(m => m.id === editMeta.id ? { ...editMeta, ...nuevaMeta } : m));
-    } else {
-      setMetas([
-        ...metas,
-        {
-          ...nuevaMeta,
-          id: `m${metas.length + 1}`,
-        },
-      ]);
+    
+    setLoading(true);
+    try {
+      let result: Meta | null = null;
+      
+      if (editMeta) {
+        result = await updateMeta(editMeta.id, nuevaMeta);
+        if (result) {
+          setMetas(metas.map(m => m.id === editMeta.id ? result! : m));
+        }
+      } else {
+        result = await createMeta(nuevaMeta);
+        if (result) {
+          setMetas([...metas, result]);
+        }
+      }
+
+      if (result) {
+        setShowForm(false);
+        setEditMeta(null);
+        resetForm();
+      }
+    } catch (error) {
+      console.error('Error saving meta:', error);
+    } finally {
+      setLoading(false);
     }
-    setShowForm(false);
-    setEditMeta(null);
-    setNuevaMeta({ descripcion: "", objetivos: [], responsable: "", fechaLimite: "", estado: "Pendiente", actividades: [], indicadores: [] });
+  };
+
+  const resetForm = () => {
+    setNuevaMeta({ 
+      descripcion: "", 
+      objetivos: [], 
+      responsable: "", 
+      fecha_fin: "", 
+      estado: "Pendiente", 
+      actividades: [], 
+      indicadores: [] 
+    });
     setNuevaActividad("");
     setNewIndicatorLink('');
     setNewIndicatorFiles([]);
@@ -147,7 +353,8 @@ export default function PlanOperativoPage() {
       descripcion: meta.descripcion,
       objetivos: meta.objetivos,
       responsable: meta.responsable,
-      fechaLimite: meta.fechaLimite,
+      responsable_id: meta.responsable_id,
+      fecha_fin: meta.fecha_fin,
       estado: meta.estado,
       actividades: meta.actividades || [],
       indicadores: meta.indicadores || [],
@@ -157,57 +364,117 @@ export default function PlanOperativoPage() {
     setNewIndicatorFiles([]);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm("¿Seguro que deseas eliminar esta meta?")) return;
-    setMetas(metas.filter(m => m.id !== id));
+    
+    setLoading(true);
+    const success = await deleteMeta(id);
+    if (success) {
+      setMetas(metas.filter(m => m.id !== id));
+    }
+    setLoading(false);
   };
 
-  const handleActivityCompletionToggle = (activityId: string) => {
-    setNuevaMeta(prev => ({
-      ...prev,
-      actividades: (prev.actividades || []).map(act =>
-        act.id === activityId ? { ...act, isCompleted: !act.isCompleted, isCanceled: act.isCompleted ? act.isCanceled : false, cancelReason: act.isCompleted ? act.cancelReason : '' } : act
-      ),
-    }));
-  };
+  const handleActivityCompletionToggle = async (activityId: string) => {
+    if (!editMeta) return;
+    
+    const activity = nuevaMeta.actividades?.find(act => act.id === activityId);
+    if (!activity) return;
 
-  const handleActivityCancellation = (activityId: string) => {
-    setNuevaMeta(prev => ({
-      ...prev,
-      actividades: (prev.actividades || []).map(act =>
-        act.id === activityId ? { ...act, isCanceled: true, isCompleted: false } : act
-      ),
-    }));
-  };
+    const success = await updateActividad(activityId, {
+      isCompleted: !activity.isCompleted,
+      isCanceled: activity.isCompleted ? activity.isCanceled : false
+    });
 
-  const handleActivityReasonChange = (activityId: string, reason: string) => {
-    setNuevaMeta(prev => ({
-      ...prev,
-      actividades: (prev.actividades || []).map(act =>
-        act.id === activityId ? { ...act, cancelReason: reason } : act
-      ),
-    }));
-  };
-
-  const handleAddIndicatorLink = () => {
-    if (newIndicatorLink.trim()) {
+    if (success) {
       setNuevaMeta(prev => ({
         ...prev,
-        indicadores: [...(prev.indicadores || []), { type: 'link', value: newIndicatorLink.trim() }]
+        actividades: (prev.actividades || []).map(act =>
+          act.id === activityId ? { 
+            ...act, 
+            isCompleted: !act.isCompleted, 
+            isCanceled: act.isCompleted ? act.isCanceled : false 
+          } : act
+        ),
       }));
-      setNewIndicatorLink('');
+      
+      // Actualizar también en la lista principal
+      const updatedMetas = await fetchMetas();
+      setMetas(updatedMetas);
     }
   };
 
-  const handleAddIndicatorFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const filesArray = Array.from(e.target.files);
-      const fileIndicators: Indicator[] = filesArray.map(file => ({ type: 'file', value: file.name }));
+  const handleActivityCancellation = async (activityId: string) => {
+    const success = await updateActividad(activityId, {
+      isCanceled: true,
+      isCompleted: false
+    });
+
+    if (success) {
       setNuevaMeta(prev => ({
         ...prev,
-        indicadores: [...(prev.indicadores || []), ...fileIndicators]
+        actividades: (prev.actividades || []).map(act =>
+          act.id === activityId ? { ...act, isCanceled: true, isCompleted: false } : act
+        ),
       }));
+      
+      // Actualizar también en la lista principal
+      const updatedMetas = await fetchMetas();
+      setMetas(updatedMetas);
+    }
+  };
+
+  const handleActivityReasonChange = async (activityId: string, reason: string) => {
+    const success = await updateActividad(activityId, {
+      cancelReason: reason
+    });
+
+    if (success) {
+      setNuevaMeta(prev => ({
+        ...prev,
+        actividades: (prev.actividades || []).map(act =>
+          act.id === activityId ? { ...act, cancelReason: reason } : act
+        ),
+      }));
+    }
+  };
+
+  const handleAddIndicatorLink = async () => {
+    if (newIndicatorLink.trim() && editMeta) {
+      const success = await createIndicador(editMeta.id, 'link', newIndicatorLink.trim());
+      if (success) {
+        setNuevaMeta(prev => ({
+          ...prev,
+          indicadores: [...(prev.indicadores || []), { type: 'link', value: newIndicatorLink.trim() }]
+        }));
+        setNewIndicatorLink('');
+        
+        // Actualizar también en la lista principal
+        const updatedMetas = await fetchMetas();
+        setMetas(updatedMetas);
+      }
+    }
+  };
+
+  const handleAddIndicatorFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && editMeta) {
+      const filesArray = Array.from(e.target.files);
+      
+      for (const file of filesArray) {
+        const success = await createIndicador(editMeta.id, 'file', file.name);
+        if (success) {
+          setNuevaMeta(prev => ({
+            ...prev,
+            indicadores: [...(prev.indicadores || []), { type: 'file', value: file.name }]
+          }));
+        }
+      }
+      
       setNewIndicatorFiles(prev => [...prev, ...filesArray]);
+      
+      // Actualizar también en la lista principal
+      const updatedMetas = await fetchMetas();
+      setMetas(updatedMetas);
     }
   };
 
@@ -219,9 +486,22 @@ export default function PlanOperativoPage() {
   };
 
   const filteredMetas = metas.filter(meta => {
-    console.warn("Filtering by year is not fully implemented as Meta interface lacks a year property.");
+    // TODO: Implementar filtrado por año cuando se agregue el campo año a las metas
     return true;
   });
+
+  if (loading && metas.length === 0) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-lg">Cargando...</div>
+        </div>
+      </div>
+    );
+  }
+
+  console.log(metas);
+  console.log(objetivos);
 
   return (
     <div className="container mx-auto py-8">
@@ -231,12 +511,10 @@ export default function PlanOperativoPage() {
         <CustomButton onClick={() => {
           setShowForm(true);
           setEditMeta(null);
-          setNuevaMeta({ descripcion: "", objetivos: [], responsable: "", fechaLimite: "", estado: "Pendiente", actividades: [], indicadores: [] });
-          setNuevaActividad("");
-          setNewIndicatorLink('');
-          setNewIndicatorFiles([]);
+          resetForm();
         }}>Agregar Meta</CustomButton>
       </div>
+      
       <div className="mb-8">
         <h2 className="text-2xl font-bold mb-4">Metas del Plan Operativo</h2>
         <div className="overflow-x-auto rounded-lg shadow">
@@ -256,36 +534,28 @@ export default function PlanOperativoPage() {
             <tbody>
               {filteredMetas.map(meta => {
                 const activities = meta.actividades || [];
-                const completedActivities = activities.filter(act => act.isCompleted && !act.isCanceled);
-                const nonCanceledActivities = activities.filter(act => !act.isCanceled);
-
-                let status = 'Pendiente';
-                if (nonCanceledActivities.length > 0 && completedActivities.length === nonCanceledActivities.length) {
-                  status = 'Completada';
-                } else if (completedActivities.length > 0) {
-                  status = 'En progreso';
-                }
+                const status = computarEstadoMeta(activities);
 
                 return (
                   <tr key={meta.id} className="hover:bg-gray-100">
                     <td className="border border-gray-300 py-2 px-4 text-sm">
                       {meta.objetivos.map(oid => (
                         <span key={oid} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs mr-1">
-                          {objetivosEjemplo.find(o => o.id === oid)?.descripcion}
+                          {objetivos.find(o => o.id === oid)?.nombre}
                         </span>
                       ))}
                     </td>
                     <td className="border border-gray-300 py-2 px-4 text-sm">{meta.descripcion}</td>
                     <td className="border border-gray-300 py-2 px-4 text-sm">
-                      {(meta.actividades || []).map((act, idx) => (
+                      {activities.map((act, idx) => (
                         <div key={idx} className={`text-sm ${act.isCompleted && !act.isCanceled ? 'text-green-600' : act.isCanceled ? 'line-through text-red-500' : 'text-gray-900'}`}>
                           - {act.description}
                         </div>
                       ))}
-                      {(meta.actividades || []).length === 0 && '-N/A-'}
+                      {activities.length === 0 && '-N/A-'}
                     </td>
                     <td className="border border-gray-300 py-2 px-4 text-sm">{meta.responsable}</td>
-                    <td className="border border-gray-300 py-2 px-4 text-sm">{meta.fechaLimite}</td>
+                    <td className="border border-gray-300 py-2 px-4 text-sm">{meta.fecha_fin}</td>
                     <td className="border border-gray-300 py-2 px-4 text-sm">{status}</td>
                     <td className="border border-gray-300 py-2 px-4 text-sm">
                       {(meta.indicadores && meta.indicadores.length > 0) ? (
@@ -321,21 +591,23 @@ export default function PlanOperativoPage() {
           </table>
         </div>
       </div>
+      
       {showForm && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-white/30 backdrop-blur-sm">
-          <form onSubmit={handleSave} className="bg-white p-6 rounded shadow-lg w-full max-w-md">
+          <form onSubmit={handleSave} className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="text-2xl font-bold mb-4">
               {editMeta ? "Editar Meta" : "Agregar Meta"}
             </h2>
+            
             <div className="mb-4">
               <label className="block font-semibold mb-1">Objetivos Asociados</label>
               <Select<Option, true>
                 isMulti
-                options={objetivosEjemplo.map(obj => ({ value: obj.id, label: obj.descripcion }))}
+                options={objetivos.map(obj => ({ value: obj.id, label: obj.nombre }))}
                 value={nuevaMeta.objetivos
                   .map(objId => {
-                    const objetivo = objetivosEjemplo.find(o => o.id === objId);
-                    return objetivo ? { value: objetivo.id, label: objetivo.descripcion } : null;
+                    const objetivo = objetivos.find(o => o.id === objId);
+                    return objetivo ? { value: objetivo.id, label: objetivo.nombre } : null;
                   })
                   .filter((option): option is Option => option !== null)}
                 onChange={(selectedOptions) => {
@@ -349,6 +621,7 @@ export default function PlanOperativoPage() {
                 classNamePrefix="select"
               />
             </div>
+            
             <div className="mb-4">
               <label className="block font-semibold mb-1">Meta (SMART)</label>
               <textarea
@@ -358,6 +631,7 @@ export default function PlanOperativoPage() {
                 required
               />
             </div>
+            
             <div className="mb-4">
               <label className="block font-semibold mb-1">Actividades/Indicadores</label>
               <div className="flex gap-2 mb-2">
@@ -368,19 +642,36 @@ export default function PlanOperativoPage() {
                   value={nuevaActividad}
                   onChange={e => setNuevaActividad(e.target.value)}
                 />
-                <CustomButton type="button" onClick={() => {
+                <CustomButton type="button" onClick={async () => {
                   if (nuevaActividad.trim()) {
-                    setNuevaMeta(prev => ({
-                      ...prev,
-                      actividades: [
-                        ...(prev.actividades || []),
-                        { id: `temp-${Date.now()}`, description: nuevaActividad.trim(), isCompleted: false, isCanceled: false }
-                      ]
-                    }));
-                    setNuevaActividad("");
+                    if (editMeta) {
+                      const newActivity = await createActividad(editMeta.id, nuevaActividad.trim());
+                      if (newActivity) {
+                        setNuevaMeta(prev => ({
+                          ...prev,
+                          actividades: [...(prev.actividades || []), newActivity]
+                        }));
+                        setNuevaActividad("");
+                        
+                        // Actualizar también en la lista principal
+                        const updatedMetas = await fetchMetas();
+                        setMetas(updatedMetas);
+                      }
+                    } else {
+                      // Para nuevas metas, agregar temporalmente
+                      setNuevaMeta(prev => ({
+                        ...prev,
+                        actividades: [
+                          ...(prev.actividades || []),
+                          { id: `temp-${Date.now()}`, description: nuevaActividad.trim(), isCompleted: false, isCanceled: false }
+                        ]
+                      }));
+                      setNuevaActividad("");
+                    }
                   }
                 }}>Agregar</CustomButton>
               </div>
+              
               <ul className="list-disc list-inside">
                 {(nuevaMeta.actividades || []).map((act, idx) => (
                   <li key={act.id || idx} className="flex flex-col gap-2 border-b last:border-b-0 py-2">
@@ -474,22 +765,42 @@ export default function PlanOperativoPage() {
               <label className="block font-semibold mb-1">Responsable</label>
               <select
                 className="w-full border rounded p-2"
-                value={nuevaMeta.responsable}
-                onChange={e => setNuevaMeta({ ...nuevaMeta, responsable: e.target.value })}
+                value={nuevaMeta.responsable_id || ''}
+                onChange={e => {
+                  const selectedUserId = parseInt(e.target.value);
+                  const selectedUser = usuarios.find(user => user.id === selectedUserId);
+                  setNuevaMeta({ 
+                    ...nuevaMeta, 
+                    responsable_id: selectedUserId,
+                    responsable: selectedUser?.full_name || ''
+                  });
+                }}
                 required
               >
                 <option value="">Seleccionar Responsable</option>
-                {usuariosEjemplo.map(user => (
-                  <option key={user.id} value={user.full_name}>{user.full_name}</option>
+                {usuarios.map(user => (
+                  <option key={user.id} value={user.id}>{user.full_name}</option>
                 ))}
               </select>
             </div>
+
+            <div className="mb-4">
+              <label className="block font-semibold mb-1">Fecha Límite</label>
+              <input
+                type="date"
+                className="w-full border rounded p-2"
+                value={nuevaMeta.fecha_fin}
+                onChange={e => setNuevaMeta({ ...nuevaMeta, fecha_fin: e.target.value })}
+                required
+              />
+            </div>
+            
             <div className="flex justify-end gap-2">
-              <CustomButton type="button" variant="outline" onClick={() => setShowForm(false)}>
+              <CustomButton type="button" variant="outline" onClick={() => setShowForm(false)} disabled={loading}>
                 Cancelar
               </CustomButton>
-              <CustomButton type="submit">
-                {editMeta ? "Guardar" : "Agregar"}
+              <CustomButton type="submit" disabled={loading}>
+                {loading ? "Guardando..." : (editMeta ? "Guardar" : "Agregar")}
               </CustomButton>
             </div>
           </form>

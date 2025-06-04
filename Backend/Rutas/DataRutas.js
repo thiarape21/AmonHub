@@ -584,6 +584,544 @@ router.delete("/analisis-foda/:id", async (req, res) => {
   }
 });
 
+// CRUD Metas
 
+
+
+// ============================================
+// PLAN OPERATIVO - RUTAS COMPLETAS
+// ============================================
+
+// CRUD METAS CON RELACIONES COMPLETAS
+
+// Obtener todas las metas con sus relaciones
+router.get("/metas", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("Metas")
+      .select(`
+        *,
+        responsable:Usuarios!responsable_id(id, full_name),
+        objetivos:Objetivos_X_Metas(
+          objetivo:Objetivos(id, nombre)
+        ),
+        actividades:Actividades(*),
+        indicadores:Indicadores(*)
+      `);
+
+    if (error) {
+      return res.status(500).json({
+        message: "Error al obtener metas",
+        error: error.message
+      });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error en el servidor",
+      error: error.message
+    });
+  }
+});
+
+// Obtener una meta específica con todas sus relaciones
+router.get("/metas/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from("Metas")
+      .select(`
+        *,
+        responsable:Usuarios!responsable_id(id, full_name),
+        objetivos:Objetivos_X_Metas(
+          objetivo:Objetivos(id, nombre)
+        ),
+        actividades:Actividades(*),
+        indicadores:Indicadores(*)
+      `)
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      return res.status(404).json({
+        message: "Meta no encontrada",
+        error: error.message
+      });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error en el servidor",
+      error: error.message
+    });
+  }
+});
+
+// Crear nueva meta con objetivos y actividades
+router.post("/metas", async (req, res) => {
+  try {
+    const { 
+      nombre, 
+      descripcion, 
+      responsable_id, 
+      fecha_inicio, 
+      fecha_fin, 
+      objetivos, 
+      actividades,
+      indicadores 
+    } = req.body;
+
+    // Validaciones básicas
+    if (!descripcion || !responsable_id || !fecha_fin) {
+      return res.status(400).json({
+        message: "Faltan campos requeridos: descripcion, responsable_id, fecha_fin"
+      });
+    }
+
+    // Crear la meta
+    const { data: meta, error: metaError } = await supabase
+      .from("Metas")
+      .insert([{
+        nombre,
+        descripcion,
+        responsable_id,
+        fecha_inicio,
+        fecha_fin
+      }])
+      .select()
+      .single();
+
+    if (metaError) {
+      return res.status(400).json({
+        message: "Error al crear meta",
+        error: metaError.message
+      });
+    }
+
+    // Asociar objetivos si se proporcionaron
+    if (objetivos && objetivos.length > 0) {
+      const objetivosData = objetivos.map(objetivo_id => ({
+        meta_id: meta.id,
+        objetivo_id: objetivo_id
+      }));
+
+      const { error: objetivosError } = await supabase
+        .from("Objetivos_X_Metas")
+        .insert(objetivosData);
+
+      if (objetivosError) {
+        console.error("Error al asociar objetivos:", objetivosError.message);
+      }
+    }
+
+    // Crear actividades si se proporcionaron
+    if (actividades && actividades.length > 0) {
+      const actividadesData = actividades.map(actividad => ({
+        description: actividad.description,
+        meta_id: meta.id,
+        isCompleted: false,
+        isCanceled: false
+      }));
+
+      const { error: actividadesError } = await supabase
+        .from("Actividades")
+        .insert(actividadesData);
+
+      if (actividadesError) {
+        console.error("Error al crear actividades:", actividadesError.message);
+      }
+    }
+
+    // Crear indicadores si se proporcionaron
+    if (indicadores && indicadores.length > 0) {
+      const indicadoresData = indicadores.map(indicador => ({
+        meta_id: meta.id,
+        tipo: indicador.type,
+        valor: indicador.value
+      }));
+
+      const { error: indicadoresError } = await supabase
+        .from("Indicadores")
+        .insert(indicadoresData);
+
+      if (indicadoresError) {
+        console.error("Error al crear indicadores:", indicadoresError.message);
+      }
+    }
+
+    // Obtener la meta completa con todas las relaciones
+    const { data: metaCompleta, error: fetchError } = await supabase
+      .from("Metas")
+      .select(`
+        *,
+        responsable:Usuarios!responsable_id(id, full_name),
+        objetivos:Objetivos_X_Metas(
+          objetivo:Objetivos(id, nombre)
+        ),
+        actividades:Actividades(*),
+        indicadores:Indicadores(*)
+      `)
+      .eq("id", meta.id)
+      .single();
+
+    if (fetchError) {
+      return res.status(201).json(meta); // Devolver meta básica si falla el fetch completo
+    }
+
+    res.status(201).json(metaCompleta);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error en el servidor",
+      error: error.message
+    });
+  }
+});
+
+// Actualizar meta existente
+router.put("/metas/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      nombre, 
+      descripcion, 
+      responsable_id, 
+      fecha_inicio, 
+      fecha_fin, 
+      objetivos,
+      actividades,
+      indicadores 
+    } = req.body;
+
+    // Actualizar la meta
+    const { data: meta, error: metaError } = await supabase
+      .from("Metas")
+      .update({
+        nombre,
+        descripcion,
+        responsable_id,
+        fecha_inicio,
+        fecha_fin
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (metaError) {
+      return res.status(400).json({
+        message: "Error al actualizar meta",
+        error: metaError.message
+      });
+    }
+
+    // Actualizar objetivos asociados
+    if (objetivos !== undefined) {
+      // Eliminar asociaciones existentes
+      await supabase
+        .from("Objetivos_X_Metas")
+        .delete()
+        .eq("meta_id", id);
+
+      // Crear nuevas asociaciones
+      if (objetivos.length > 0) {
+        const objetivosData = objetivos.map(objetivo_id => ({
+          meta_id: parseInt(id),
+          objetivo_id: objetivo_id
+        }));
+
+        await supabase
+          .from("Objetivos_X_Metas")
+          .insert(objetivosData);
+      }
+    }
+
+    // Obtener la meta actualizada con todas las relaciones
+    const { data: metaCompleta, error: fetchError } = await supabase
+      .from("Metas")
+      .select(`
+        *,
+        responsable:Usuarios!responsable_id(id, full_name),
+        objetivos:Objetivos_X_Metas(
+          objetivo:Objetivos(id, nombre)
+        ),
+        actividades:Actividades(*),
+        indicadores:Indicadores(*)
+      `)
+      .eq("id", id)
+      .single();
+
+    if (fetchError) {
+      return res.json(meta);
+    }
+
+    res.json(metaCompleta);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error en el servidor",
+      error: error.message
+    });
+  }
+});
+
+// Eliminar meta y todas sus relaciones
+router.delete("/metas/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Eliminar en orden debido a foreign keys
+    // 1. Indicadores
+    await supabase.from("Indicadores").delete().eq("meta_id", id);
+    
+    // 2. Actividades
+    await supabase.from("Actividades").delete().eq("meta_id", id);
+    
+    // 3. Objetivos asociados
+    await supabase.from("Objetivos_X_Metas").delete().eq("meta_id", id);
+    
+    // 4. Meta
+    const { error } = await supabase.from("Metas").delete().eq("id", id);
+
+    if (error) {
+      return res.status(400).json({
+        message: "Error al eliminar meta",
+        error: error.message
+      });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({
+      message: "Error en el servidor",
+      error: error.message
+    });
+  }
+});
+
+// ============================================
+// ACTIVIDADES
+// ============================================
+
+// Obtener actividades de una meta específica
+router.get("/metas/:id/actividades", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from("Actividades")
+      .select("*")
+      .eq("meta_id", id);
+
+    if (error) {
+      return res.status(500).json({
+        message: "Error al obtener actividades",
+        error: error.message
+      });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error en el servidor",
+      error: error.message
+    });
+  }
+});
+
+// Crear nueva actividad para una meta
+router.post("/metas/:id/actividades", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { description } = req.body;
+
+    if (!description) {
+      return res.status(400).json({
+        message: "La descripción de la actividad es requerida"
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("Actividades")
+      .insert([{
+        description,
+        meta_id: parseInt(id),
+        isCompleted: false,
+        isCanceled: false
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json({
+        message: "Error al crear actividad",
+        error: error.message
+      });
+    }
+
+    res.status(201).json(data);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error en el servidor",
+      error: error.message
+    });
+  }
+});
+
+// Actualizar actividad (completar, cancelar, etc.)
+router.put("/actividades/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { description, isCompleted, isCanceled, cancelReason } = req.body;
+
+    const updateData = {};
+    if (description !== undefined) updateData.description = description;
+    if (isCompleted !== undefined) updateData.isCompleted = isCompleted;
+    if (isCanceled !== undefined) updateData.isCanceled = isCanceled;
+    if (cancelReason !== undefined) updateData.cancelReason = cancelReason;
+
+    const { data, error } = await supabase
+      .from("Actividades")
+      .update(updateData)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json({
+        message: "Error al actualizar actividad",
+        error: error.message
+      });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error en el servidor",
+      error: error.message
+    });
+  }
+});
+
+// Eliminar actividad
+router.delete("/actividades/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase
+      .from("Actividades")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      return res.status(400).json({
+        message: "Error al eliminar actividad",
+        error: error.message
+      });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({
+      message: "Error en el servidor",
+      error: error.message
+    });
+  }
+});
+
+// ============================================
+// INDICADORES
+// ============================================
+
+// Obtener indicadores de una meta específica
+router.get("/metas/:id/indicadores", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from("Indicadores")
+      .select("*")
+      .eq("meta_id", id);
+
+    if (error) {
+      return res.status(500).json({
+        message: "Error al obtener indicadores",
+        error: error.message
+      });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error en el servidor",
+      error: error.message
+    });
+  }
+});
+
+// Crear nuevo indicador para una meta
+router.post("/metas/:id/indicadores", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tipo, valor } = req.body;
+
+    if (!tipo || !valor) {
+      return res.status(400).json({
+        message: "Tipo y valor del indicador son requeridos"
+      });
+    }
+
+    if (!['link', 'file'].includes(tipo)) {
+      return res.status(400).json({
+        message: "Tipo de indicador debe ser 'link' o 'file'"
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("Indicadores")
+      .insert([{
+        meta_id: parseInt(id),
+        tipo,
+        valor
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json({
+        message: "Error al crear indicador",
+        error: error.message
+      });
+    }
+
+    res.status(201).json(data);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error en el servidor",
+      error: error.message
+    });
+  }
+});
+
+// Eliminar indicador
+router.delete("/indicadores/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase
+      .from("Indicadores")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      return res.status(400).json({
+        message: "Error al eliminar indicador",
+        error: error.message
+      });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({
+      message: "Error en el servidor",
+      error: error.message
+    });
+  }
+});
 
 export default router;
