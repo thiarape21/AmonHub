@@ -179,6 +179,39 @@ router.post('/proyectos/:id/objetivos-smart', async (req, res) => {
   }
 });
 
+// Eliminar todos los objetivos SMART de un proyecto
+router.delete('/proyectos/:id/objetivos-smart', async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('ObjetivosSmart')
+      .delete()
+      .eq('proyecto_id', req.params.id);
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Eliminar un objetivo SMART por su id
+router.delete('/objetivos-smart/:id', async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('ObjetivosSmart')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Upload PDFs for a project
 router.post('/proyectos/:id/pdfs', upload.array('pdfs'), async (req, res) => {
   try {
@@ -215,5 +248,6 @@ router.get('/proyectos/:id/pdfs', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 export default router; 

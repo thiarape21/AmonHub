@@ -165,6 +165,12 @@ export default function ProyectoForm({
       const proyectoGuardado = await res.json();
 
       if (objetivosSmart.length > 0) {
+        // Primero, elimina los existentes
+        await fetch(`http://localhost:3030/api/proyectos/${proyectoGuardado.id}/objetivos-smart`, {
+          method: "DELETE"
+        });
+
+        // Luego, inserta los nuevos
         const objetivosSmartConProyectoId = objetivosSmart.map(obj => {
           const { id, ...rest } = obj;
           return {
@@ -251,7 +257,15 @@ export default function ProyectoForm({
       setNuevoSmart({ nombre: "", descripcion: "" });
     }
   };
-  const handleRemoveSmart = (idx: number) => {
+  const handleRemoveSmart = async (idx: number) => {
+    const objetivo = objetivosSmart[idx];
+    // Si tiene id, eliminar en backend
+    if (objetivo.id) {
+      await fetch(`http://localhost:3030/api/objetivos-smart/${objetivo.id}`, {
+        method: "DELETE"
+      });
+    }
+    // Eliminar del estado local
     setObjetivosSmart(objetivosSmart.filter((_, i) => i !== idx));
   };
   const handleCheckSmart = (idx: number) => {
