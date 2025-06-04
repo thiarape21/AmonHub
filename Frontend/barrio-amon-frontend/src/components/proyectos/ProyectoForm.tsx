@@ -151,10 +151,13 @@ export default function ProyectoForm({
         : `http://localhost:3030/api/proyectos/${proyecto.id}`;
       const method = modo === "crear" ? "POST" : "PUT";
 
+      // Excluye tareas del objeto enviado
+      const { tareas, ...formSinTareas } = form;
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(formSinTareas),
       });
 
       if (!res.ok) throw new Error("Error al guardar el proyecto");
@@ -162,10 +165,13 @@ export default function ProyectoForm({
       const proyectoGuardado = await res.json();
 
       if (objetivosSmart.length > 0) {
-        const objetivosSmartConProyectoId = objetivosSmart.map(obj => ({
-          ...obj,
-          proyecto_id: proyectoGuardado.id
-        }));
+        const objetivosSmartConProyectoId = objetivosSmart.map(obj => {
+          const { id, ...rest } = obj;
+          return {
+            ...rest,
+            proyecto_id: proyectoGuardado.id
+          };
+        });
 
         await fetch(`http://localhost:3030/api/proyectos/${proyectoGuardado.id}/objetivos-smart`, {
           method: "POST",

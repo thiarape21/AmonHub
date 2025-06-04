@@ -193,6 +193,7 @@ router.delete("/usuarios/:id", async (req, res) => {
   }
 });
 
+/*
 // CRUD Proyectos
 router.get("/proyectos", async (req, res) => {
   const { data, error } = await supabase.from("proyectos").select("*");
@@ -228,7 +229,7 @@ router.delete("/proyectos/:id", async (req, res) => {
   if (error) return res.status(400).json({ error: error.message });
   res.status(204).send();
 });
-
+*/
 
 // CRUD Objetivos
 // Obtener todos los objetivos
@@ -288,6 +289,7 @@ router.delete("/objetivos/:id", async (req, res) => {
 
 // CRUD ObjetivosSmart
 // Obtener todos los objetivos SMART de un proyecto
+/*
 router.get("/proyectos/:id/objetivos-smart", async (req, res) => {
   try {
     const { id } = req.params;
@@ -341,7 +343,7 @@ router.post("/proyectos/:id/objetivos-smart", async (req, res) => {
     });
   }
 });
-
+*/
 // Actualizar un objetivo SMART
 router.put("/objetivos-smart/:id", async (req, res) => {
   try {
@@ -394,6 +396,7 @@ router.delete("/objetivos-smart/:id", async (req, res) => {
   }
 });
 
+/*
 // CRUD PDFs
 // Obtener todos los PDFs de un proyecto
 router.get("/proyectos/:id/pdfs", async (req, res) => {
@@ -479,7 +482,7 @@ router.delete("/pdfs/:id", async (req, res) => {
       error: error.message
     });
   }
-});
+});*/
 
 // Obtener todos los elementos FODA
 router.get("/analisis-foda", async (req, res) => {
