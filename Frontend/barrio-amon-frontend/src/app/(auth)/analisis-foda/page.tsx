@@ -7,95 +7,39 @@ interface FodaElement {
   texto: string;
   tipo: 'fortaleza' | 'oportunidad' | 'debilidad' | 'amenaza';
   dimension: string;
-  meta?: 'mantener' | 'explotar' | 'corregir' | 'afrontar' | null;
 }
 
 // === Funciones para interactuar con API ===
 
-// Mock data for development/testing
-const MOCK_FODA_DATA: FodaElement[] = [
-  {
-    id: "1",
-    texto: "Ubicación estratégica en el centro de la ciudad",
-    tipo: "fortaleza",
-    dimension: "Ubicación",
-    meta: "mantener"
-  },
-  {
-    id: "2",
-    texto: "Patrimonio histórico bien conservado",
-    tipo: "fortaleza",
-    dimension: "Patrimonio",
-    meta: "explotar"
-  },
-  {
-    id: "3",
-    texto: "Falta de espacios de estacionamiento",
-    tipo: "debilidad",
-    dimension: "Infraestructura",
-    meta: "corregir"
-  },
-  {
-    id: "4",
-    texto: "Potencial para desarrollo turístico",
-    tipo: "oportunidad",
-    dimension: "Turismo",
-    meta: "explotar"
-  }
-];
-
 async function getFoda(): Promise<FodaElement[]> {
-  try {
-    const res = await fetch("http://localhost:3030/api/analisis-foda", { 
-      cache: "no-store",
-      // Add timeout to prevent long hanging requests
-      signal: AbortSignal.timeout(5000)
-    });
-    if (!res.ok) throw new Error("No se pudieron obtener los elementos FODA");
-    return res.json();
-  } catch (error) {
-    console.warn("Error fetching FODA data, using mock data instead:", error);
-    return MOCK_FODA_DATA;
-  }
+  const res = await fetch("http://localhost:3030/api/analisis-foda", { cache: "no-store" });
+  if (!res.ok) throw new Error("No se pudieron obtener los elementos FODA");
+  return res.json();
 }
 
 async function createFoda(elemento: Omit<FodaElement, "id">): Promise<void> {
-  try {
-    const res = await fetch("http://localhost:3030/api/analisis-foda", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(elemento),
-    });
-    if (!res.ok) throw new Error("Error al crear el elemento FODA");
-  } catch (error) {
-    console.warn("Error creating FODA element:", error);
-    // In development, we'll just log the error and continue
-    // In production, you might want to show an error message to the user
-  }
+  const res = await fetch("http://localhost:3030/api/analisis-foda", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(elemento),
+  });
+  if (!res.ok) throw new Error("Error al crear el elemento FODA");
 }
 
 async function updateFoda(id: string, elemento: Omit<FodaElement, "id">): Promise<void> {
-  try {
-    const res = await fetch(`http://localhost:3030/api/analisis-foda/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(elemento),
-    });
-    if (!res.ok) throw new Error("Error al actualizar el elemento FODA");
-  } catch (error) {
-    console.warn("Error updating FODA element:", error);
-  }
+  const res = await fetch(`http://localhost:3030/api/analisis-foda/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(elemento),
+  });
+  if (!res.ok) throw new Error("Error al actualizar el elemento FODA");
 }
 
 async function deleteFoda(id: string): Promise<void> {
-  try {
-    const res = await fetch(`http://localhost:3030/api/analisis-foda/${id}`, {
-      method: "DELETE",
-    });
-    if (!res.ok) throw new Error("Error al eliminar el elemento FODA");
-  } catch (error) {
-    console.warn("Error deleting FODA element:", error);
-  }
+  const res = await fetch(`http://localhost:3030/api/analisis-foda/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Error al eliminar el elemento FODA");
 }
 
 // === Dimensiones base por defecto ===
@@ -143,7 +87,6 @@ export default function FodaPage() {
         texto: nuevoElemento.texto!,
         tipo: nuevoElemento.tipo as FodaElement['tipo'],
         dimension: nuevoElemento.dimension!,
-        meta: nuevoElemento.meta ?? null,
       };
 
       if (editElemento) {
@@ -168,7 +111,6 @@ export default function FodaPage() {
       texto: elemento.texto,
       tipo: elemento.tipo,
       dimension: elemento.dimension,
-      meta: elemento.meta ?? undefined,
     });
     setShowForm(true);
   };
@@ -207,7 +149,7 @@ export default function FodaPage() {
           ))}
         </div>
       </div>
-
+x
       {/* Matriz FODA */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {["fortaleza", "oportunidad", "debilidad", "amenaza"].map(tipo => {
@@ -217,7 +159,7 @@ export default function FodaPage() {
           return (
             <div key={tipo} className={`bg-${colores[tipo]}-50 p-4 rounded-lg`}>
               <h2 className={`text-xl font-bold mb-4 text-${colores[tipo]}-800`}>
-                {tipo[0].toUpperCase() + tipo.slice(1)}s
+                {tipo[0].toUpperCase() + tipo.slice(1)}
               </h2>
               <ul className="space-y-2">
                 {elementos.filter(e => e.tipo === tipo).map(e => (
@@ -288,24 +230,7 @@ export default function FodaPage() {
               />
             </div>
 
-            <div className="mb-4">
-              <label className="block font-semibold mb-1">Meta (opcional)</label>
-              <select
-                className="w-full border rounded p-2"
-                value={nuevoElemento.meta ?? ""}
-                onChange={e => setNuevoElemento({
-                  ...nuevoElemento,
-                  meta: e.target.value === "" ? null : e.target.value as FodaElement["meta"]
-                })}
-              >
-                <option value="">Sin meta</option>
-                <option value="mantener">Mantener</option>
-                <option value="explotar">Explotar</option>
-                <option value="corregir">Corregir</option>
-                <option value="afrontar">Afrontar</option>
-              </select>
-            </div>
-
+            
             <div className="flex justify-end gap-2">
               <CustomButton type="button" variant="outline" onClick={() => setShowForm(false)}>
                 Cancelar

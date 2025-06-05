@@ -621,7 +621,7 @@ router.get("/analisis-foda/:id", async (req, res) => {
 
 // Crear un nuevo elemento FODA
 router.post("/analisis-foda", async (req, res) => {
-  const { texto, tipo, dimension, meta } = req.body;
+  const { texto, tipo, dimension } = req.body;
 
   if (!texto || !tipo || !dimension) {
     return res.status(400).json({ message: "Faltan campos requeridos." });
@@ -630,7 +630,7 @@ router.post("/analisis-foda", async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("AnalisisFoda")
-      .insert([{ texto, tipo, dimension, meta }])
+      .insert([{ texto, tipo, dimension }])
       .select("*")
       .single();
 
@@ -647,7 +647,7 @@ router.post("/analisis-foda", async (req, res) => {
 // Actualizar un elemento FODA
 router.put("/analisis-foda/:id", async (req, res) => {
   const { id } = req.params;
-  const { texto, tipo, dimension, meta } = req.body;
+  const { texto, tipo, dimension } = req.body;
 
   try {
     const { data, error } = await supabase
