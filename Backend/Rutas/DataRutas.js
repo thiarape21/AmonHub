@@ -230,62 +230,162 @@ router.delete("/proyectos/:id", async (req, res) => {
   res.status(204).send();
 });
 */
-
-// CRUD Objetivos
-// Obtener todos los objetivos
+// Obtener todos los objetivos (con metas asociadas)
+// Obtener todos los objetivos (con metas asociadas)
 router.get("/objetivos", async (req, res) => {
-  const { data, error } = await supabase
+  const { data: objetivos, error } = await supabase
     .from("Objetivos")
-    .select("id, nombre, descripcion");
+    .select("*");
+
   if (error) return res.status(400).json({ error: error.message });
-  res.json(data);
+
+  const { data: metas, error: metasError } = await supabase
+    .from("Metas_Asignadas") // nombre correcto
+    .select("id, objetivos_id, nombre, completado");
+
+  if (metasError) return res.status(400).json({ error: metasError.message });
+
+  const objetivosConMetas = objetivos.map(obj => ({
+    ...obj,
+    associatedMetas: metas
+      .filter(m => m.objetivos_id === obj.id)
+      .map(m => ({
+        id: m.id,
+        description: m.nombre,
+        isCompleted: m.completado === 1,
+        isCanceled: false,
+        cancelReason: null,
+      }))
+  }));
+
+  res.json(objetivosConMetas);
 });
 
-// Obtener un objetivo específico por ID
+
+// Obtener un objetivo específico
 router.get("/objetivos/:id", async (req, res) => {
   const { id } = req.params;
-  const { data, error } = await supabase
+
+  const { data: objetivo, error } = await supabase
     .from("Objetivos")
-    .select("id, nombre, descripcion")
+    .select("*")
     .eq("id", id)
     .single();
+
   if (error) return res.status(404).json({ error: error.message });
-  res.json(data);
+
+  const { data: metas, error: metasError } = await supabase
+    .from("Metas_Asignadas")
+    .select("id, nombre, completado")
+    .eq("objetivos_id", id);
+
+  if (metasError) return res.status(400).json({ error: metasError.message });
+
+  objetivo.associatedMetas = metas.map(m => ({
+    id: m.id,
+    description: m.nombre,
+    isCompleted: m.completado === 1,
+    isCanceled: false,
+    cancelReason: null,
+  }));
+
+  res.json(objetivo);
 });
 
-// Crear un nuevo objetivo
+
+// Crear objetivo y metas
 router.post("/objetivos", async (req, res) => {
-  const { nombre, descripcion } = req.body;
-  const { data, error } = await supabase
+  const {
+    nombre,
+    descripcion,
+    analisisfoda_id,
+    responsable_id,
+    colaboradores,
+    metas_asociadas = []
+  } = req.body;
+
+  const { data: objetivo, error: insertError } = await supabase
     .from("Objetivos")
-    .insert([{ nombre, descripcion }])
+    .insert([{ nombre, descripcion, analisisfoda_id, responsable_id, colaboradores }])
     .select()
     .single();
-  if (error) return res.status(400).json({ error: error.message });
-  res.status(201).json(data);
+
+  if (insertError) return res.status(400).json({ error: insertError.message });
+
+  if (metas_asociadas.length > 0) {
+    const metas = metas_asociadas.map(meta => ({
+      objetivos_id: objetivo.id,
+      nombre: meta.description,
+      completado: meta.isCompleted ? 1 : 0
+    }));
+
+    const { error: metasError } = await supabase
+      .from("Metas_Asignadas")
+      .insert(metas);
+
+    if (metasError) return res.status(400).json({ error: metasError.message });
+  }
+
+  res.status(201).json(objetivo);
 });
 
-// Actualizar un objetivo existente
+
+// Actualizar objetivo y metas
 router.put("/objetivos/:id", async (req, res) => {
   const { id } = req.params;
-  const { nombre, descripcion } = req.body;
-  const { data, error } = await supabase
+  const {
+    nombre,
+    descripcion,
+    analisisfoda_id,
+    responsable_id,
+    colaboradores,
+    metas_asociadas = []
+  } = req.body;
+
+  const { data: objetivo, error: updateError } = await supabase
     .from("Objetivos")
-    .update({ nombre, descripcion })
+    .update({ nombre, descripcion, analisisfoda_id, responsable_id, colaboradores })
     .eq("id", id)
     .select()
     .single();
-  if (error) return res.status(400).json({ error: error.message });
-  res.json(data);
+
+  if (updateError) return res.status(400).json({ error: updateError.message });
+
+  await supabase.from("Metas_Asignadas").delete().eq("objetivos_id", id);
+
+  if (metas_asociadas.length > 0) {
+    const metas = metas_asociadas.map(meta => ({
+      objetivos_id: id,
+      nombre: meta.description,
+      completado: meta.isCompleted ? 1 : 0
+    }));
+
+    const { error: metasError } = await supabase
+      .from("Metas_Asignadas")
+      .insert(metas);
+
+    if (metasError) return res.status(400).json({ error: metasError.message });
+  }
+
+  res.json(objetivo);
 });
 
-// Eliminar un objetivo
+
+// Eliminar objetivo (y sus metas)
 router.delete("/objetivos/:id", async (req, res) => {
   const { id } = req.params;
-  const { error } = await supabase.from("Objetivos").delete().eq("id", id);
+
+  await supabase.from("Metas_Asignadas").delete().eq("objetivos_id", id);
+
+  const { error } = await supabase
+    .from("Objetivos")
+    .delete()
+    .eq("id", id);
+
   if (error) return res.status(400).json({ error: error.message });
   res.status(204).send();
 });
+
 
 // CRUD ObjetivosSmart
 // Obtener todos los objetivos SMART de un proyecto
