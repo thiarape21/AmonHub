@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// Configure multer for file uploads
+// Configuración de multer para subida de archivos
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/');
@@ -21,7 +21,11 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// Get all projects
+// =============================================
+// RUTAS PARA PROYECTOS
+// =============================================
+
+// Obtener todos los proyectos
 router.get('/proyectos', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -35,7 +39,7 @@ router.get('/proyectos', async (req, res) => {
   }
 });
 
-// Get a single project by ID
+// Obtener un proyecto por ID
 router.get('/proyectos/:id', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -51,7 +55,7 @@ router.get('/proyectos/:id', async (req, res) => {
   }
 });
 
-// Create a new project
+// Crear un nuevo proyecto
 router.post('/proyectos', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -60,17 +64,17 @@ router.post('/proyectos', async (req, res) => {
       .select();
     
     if (error) {
-      console.error('Supabase error:', error);
+      console.error('Error en Supabase:', error);
       throw error;
     }
     res.status(201).json(data[0]);
   } catch (error) {
-    console.error('Catch error:', error);
+    console.error('Error en catch:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Update a project
+// Actualizar un proyecto existente
 router.put('/proyectos/:id', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -86,7 +90,11 @@ router.put('/proyectos/:id', async (req, res) => {
   }
 });
 
-// Get project tasks
+// =============================================
+// RUTAS PARA TAREAS
+// =============================================
+
+// Obtener tareas de un proyecto
 router.get('/proyectos/:id/tareas', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -101,7 +109,7 @@ router.get('/proyectos/:id/tareas', async (req, res) => {
   }
 });
 
-// Create a task for a project
+// Crear una nueva tarea para un proyecto
 router.post('/proyectos/:id/tareas', async (req, res) => {
   try {
     const taskData = {
@@ -121,7 +129,7 @@ router.post('/proyectos/:id/tareas', async (req, res) => {
   }
 });
 
-// Update a task
+// Actualizar una tarea existente
 router.put('/tareas/:id', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -131,7 +139,7 @@ router.put('/tareas/:id', async (req, res) => {
       .select();
     
     if (error) {
-      console.error('Supabase error:', error);
+      console.error('Error en Supabase:', error);
       throw error;
     }
     res.json(data[0]);
@@ -141,7 +149,7 @@ router.put('/tareas/:id', async (req, res) => {
   }
 });
 
-// Eliminar una tarea por su id
+// Eliminar una tarea
 router.delete('/tareas/:id', async (req, res) => {
   try {
     const { error } = await supabase
@@ -150,7 +158,7 @@ router.delete('/tareas/:id', async (req, res) => {
       .eq('id', req.params.id);
       
     if (error) {
-      console.error('Supabase error:', error);
+      console.error('Error en Supabase:', error);
       throw error;
     }
     res.status(204).send();
@@ -159,7 +167,11 @@ router.delete('/tareas/:id', async (req, res) => {
   }
 });
 
-// Get project SMART objectives
+// =============================================
+// RUTAS PARA OBJETIVOS SMART
+// =============================================
+
+// Obtener objetivos SMART de un proyecto
 router.get('/proyectos/:id/objetivos-smart', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -167,17 +179,17 @@ router.get('/proyectos/:id/objetivos-smart', async (req, res) => {
       .select('*')
       .eq('proyecto_id', req.params.id);
     
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
-      }
+    if (error) {
+      console.error('Error en Supabase:', error);
+      throw error;
+    }
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Create SMART objectives for a project
+// Crear objetivos SMART para un proyecto
 router.post('/proyectos/:id/objetivos-smart', async (req, res) => {
   try {
     const objetivosData = Array.isArray(req.body) ? req.body : [req.body];
@@ -192,7 +204,7 @@ router.post('/proyectos/:id/objetivos-smart', async (req, res) => {
       .select();
     
     if (error) {
-      console.error('Supabase error:', error);
+      console.error('Error en Supabase:', error);
       throw error;
     }
     res.status(201).json(data);
@@ -210,7 +222,7 @@ router.delete('/proyectos/:id/objetivos-smart', async (req, res) => {
       .eq('proyecto_id', req.params.id);
 
     if (error) {
-      console.error('Supabase error:', error);
+      console.error('Error en Supabase:', error);
       throw error;
     }
     res.status(204).send();
@@ -219,7 +231,7 @@ router.delete('/proyectos/:id/objetivos-smart', async (req, res) => {
   }
 });
 
-// Eliminar un objetivo SMART por su id
+// Eliminar un objetivo SMART específico
 router.delete('/objetivos-smart/:id', async (req, res) => {
   try {
     const { error } = await supabase
@@ -228,7 +240,7 @@ router.delete('/objetivos-smart/:id', async (req, res) => {
       .eq('id', req.params.id);
 
     if (error) {
-      console.error('Supabase error:', error);
+      console.error('Error en Supabase:', error);
       throw error;
     }
     res.status(204).send();
@@ -237,12 +249,29 @@ router.delete('/objetivos-smart/:id', async (req, res) => {
   }
 });
 
-// Crear nuevo pdfs
+// =============================================
+// RUTAS PARA INDICADORES DE PROYECTO
+// =============================================
 
-// Upload PDFs for a project
+// Obtener indicadores de un proyecto
+router.get('/proyectos/:id/indicadores-proyecto', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('IndicadoresProyecto')
+      .select('id, created_at, tipo, valor, proyecto_id')
+      .eq('proyecto_id', req.params.id);
+    
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Subir indicadores para un proyecto
 router.post('/proyectos/:id/indicadores-proyecto', async (req, res) => {
   try {
-    const fileData = req.body; // Frontend sends { tipo: string, valor: string }
+    const fileData = req.body;
     const indicadoresData = Array.isArray(fileData) ? fileData.map(file => ({
       tipo: file.tipo,
       valor: file.valor,
@@ -265,22 +294,7 @@ router.post('/proyectos/:id/indicadores-proyecto', async (req, res) => {
   }
 });
 
-// Get project indicators
-router.get('/proyectos/:id/indicadores-proyecto', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('IndicadoresProyecto')
-      .select('id, created_at, tipo, valor, proyecto_id')
-      .eq('proyecto_id', req.params.id);
-    
-    if (error) throw error;
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Eliminar un indicador de proyecto por su id
+// Eliminar un indicador de proyecto
 router.delete('/indicadores-proyecto/:id', async (req, res) => {
   try {
     const { error } = await supabase
@@ -289,7 +303,7 @@ router.delete('/indicadores-proyecto/:id', async (req, res) => {
       .eq('id', req.params.id);
 
     if (error) {
-      console.error('Supabase error:', error);
+      console.error('Error en Supabase:', error);
       throw error;
     }
     res.status(204).send();
@@ -298,7 +312,11 @@ router.delete('/indicadores-proyecto/:id', async (req, res) => {
   }
 });
 
-// Get task indicators
+// =============================================
+// RUTAS PARA INDICADORES DE TAREAS
+// =============================================
+
+// Obtener indicadores de una tarea
 router.get('/tareas/:id/indicadores', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -313,7 +331,7 @@ router.get('/tareas/:id/indicadores', async (req, res) => {
   }
 });
 
-// Upload indicators for a task
+// Subir indicadores para una tarea
 router.post('/tareas/:id/indicadores', async (req, res) => {
   try {
     const fileData = req.body;
@@ -339,7 +357,7 @@ router.post('/tareas/:id/indicadores', async (req, res) => {
   }
 });
 
-// Delete a task indicator
+// Eliminar un indicador de tarea
 router.delete('/indicadores-tarea/:id', async (req, res) => {
   try {
     const { error } = await supabase
@@ -348,7 +366,7 @@ router.delete('/indicadores-tarea/:id', async (req, res) => {
       .eq('id', req.params.id);
 
     if (error) {
-      console.error('Supabase error:', error);
+      console.error('Error en Supabase:', error);
       throw error;
     }
     res.status(204).send();

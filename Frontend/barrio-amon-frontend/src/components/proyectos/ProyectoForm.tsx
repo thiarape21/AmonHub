@@ -678,6 +678,10 @@ export default function ProyectoForm({
   );
 }
 
+// =============================================
+// COMPONENTE MODAL DE TAREAS
+// =============================================
+
 function TareaModal({
   show,
   onClose,
@@ -691,6 +695,7 @@ function TareaModal({
   onSave: (t: Tarea) => void;
   usuarios: { id: string; full_name: string }[];
 }) {
+  // Estados del componente
   const [formTarea, setFormTarea] = useState<Tarea>(tarea || {
     nombre: "",
     responsable: "",
@@ -703,8 +708,9 @@ function TareaModal({
   const [indicadoresTarea, setIndicadoresTarea] = useState<IndicadorProyecto[]>([]);
   const [uploadMessage, setUploadMessage] = useState('');
 
-  // Update form state when the tarea prop changes (when editing a different task)
+  // Efecto para actualizar el formulario cuando cambia la tarea
   useEffect(() => {
+    // Inicializar o actualizar el formulario
     setFormTarea(tarea || {
       nombre: "",
       responsable: "",
@@ -715,7 +721,7 @@ function TareaModal({
       cancel_reason: undefined,
     });
 
-    // Fetch task indicators if editing an existing task
+    // Cargar indicadores si estamos editando una tarea existente
     if (tarea?.id) {
       fetch(`http://localhost:3030/api/tareas/${tarea.id}/indicadores`)
         .then(res => res.json())
@@ -725,12 +731,17 @@ function TareaModal({
           }
         })
         .catch(error => {
-          console.error('Error fetching task indicators:', error);
+          console.error('Error al cargar los indicadores de la tarea:', error);
           setIndicadoresTarea([]);
         });
     }
   }, [tarea]);
 
+  // =============================================
+  // MANEJADORES DE EVENTOS
+  // =============================================
+
+  // Manejar cambios en los campos del formulario
   const handleChangeTarea = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const target = e.target;
     const name = target.name;
@@ -751,11 +762,13 @@ function TareaModal({
     }
   };
 
+  // Guardar la tarea
   const handleSave = () => {
     onSave(formTarea);
     onClose();
   };
 
+  // Manejar la subida de archivos
   const handleFileUploadComplete = async (uploadedFiles: any[]) => {
     if (!tarea?.id) {
       setUploadMessage('Error: No se puede subir archivos sin una tarea guardada');
@@ -763,7 +776,7 @@ function TareaModal({
     }
 
     try {
-      // Guardar cada archivo subido como indicador en la base de datos
+      // Guardar cada archivo como indicador en la base de datos
       for (const file of uploadedFiles) {
         const response = await fetch(`http://localhost:3030/api/tareas/${tarea.id}/indicadores`, {
           method: 'POST',
@@ -784,18 +797,19 @@ function TareaModal({
       setUploadMessage(`${uploadedFiles.length} archivo(s) subido(s) exitosamente`);
       setTimeout(() => setUploadMessage(''), 3000);
       
-      // After successful uploads, refetch the updated list of indicators
+      // Actualizar la lista de indicadores después de la subida
       const updatedIndicators = await fetch(`http://localhost:3030/api/tareas/${tarea.id}/indicadores`).then(res => res.json());
       if (Array.isArray(updatedIndicators)) {
         setIndicadoresTarea(updatedIndicators);
       }
     } catch (error) {
-      console.error('Error saving files:', error);
+      console.error('Error al guardar los archivos:', error);
       setUploadMessage('Error al guardar los indicadores en la base de datos');
       setTimeout(() => setUploadMessage(''), 3000);
     }
   };
 
+  // Eliminar un indicador
   const handleRemoveIndicador = async (idx: number) => {
     const indicadorToRemove = indicadoresTarea[idx];
     if (indicadorToRemove.id) {
@@ -812,20 +826,29 @@ function TareaModal({
           throw new Error('Error al eliminar el indicador');
         }
       } catch (error) {
-        console.error('Error deleting indicator:', error);
+        console.error('Error al eliminar el indicador:', error);
         setUploadMessage('Error al eliminar el indicador');
         setTimeout(() => setUploadMessage(''), 3000);
       }
     }
   };
 
+  // No renderizar si no se muestra el modal
   if (!show) return null;
+
+  // =============================================
+  // RENDERIZADO DEL COMPONENTE
+  // =============================================
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/30 backdrop-blur-sm overflow-y-auto">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md my-8">
+        {/* Encabezado del modal */}
         <h2 className="text-2xl font-bold mb-4 text-[#546b75]">{tarea ? "Editar Tarea" : "Crear Tarea"}</h2>
+        
+        {/* Contenido del formulario */}
         <div className="space-y-4">
+          {/* Campo Nombre */}
           <div className="mb-4">
             <label htmlFor="nombreTarea" className="block text-sm font-medium text-gray-700">Nombre</label>
             <input
@@ -838,6 +861,8 @@ function TareaModal({
               required
             />
           </div>
+
+          {/* Campo Responsable */}
           <div className="mb-4">
             <label htmlFor="responsableTarea" className="block text-sm font-medium text-gray-700">Responsable</label>
             <select
@@ -854,6 +879,8 @@ function TareaModal({
               ))}
             </select>
           </div>
+
+          {/* Campos de Fecha */}
           <div className="mb-4">
             <label htmlFor="fechaInicioTarea" className="block text-sm font-medium text-gray-700">Fecha Inicio</label>
             <input
@@ -866,6 +893,7 @@ function TareaModal({
               required
             />
           </div>
+
           <div className="mb-4">
             <label htmlFor="fechaFinTarea" className="block text-sm font-medium text-gray-700">Fecha Fin</label>
             <input
@@ -878,6 +906,8 @@ function TareaModal({
               required
             />
           </div>
+
+          {/* Estado de la tarea (solo en modo edición) */}
           {tarea && (
             <div className="mb-4">
               <label htmlFor="estadoTarea" className="block text-sm font-medium text-gray-700">Estado</label>
@@ -897,6 +927,7 @@ function TareaModal({
             </div>
           )}
           
+          {/* Checkbox de completado */}
           <div className="mb-4">
             <label htmlFor="taskCompleted" className="block text-sm font-medium text-gray-700">Completada</label>
             <input
@@ -909,6 +940,7 @@ function TareaModal({
             />
           </div>
 
+          {/* Razón de cancelación (solo si está cancelada) */}
           {formTarea.estado === 'Cancelada' && (
             <div className="mb-4">
               <label htmlFor="cancel_reason" className="block text-sm font-medium text-gray-700">Razón de Cancelación</label>
@@ -923,16 +955,19 @@ function TareaModal({
             </div>
           )}
           
+          {/* Sección de Evidencias (solo en modo edición) */}
           {tarea && (
             <div className="mb-4">
               <label className="block font-semibold">Evidencias</label>
               
+              {/* Mensajes de estado */}
               {uploadMessage && (
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-blue-800 text-sm">{uploadMessage}</p>
                 </div>
               )}
               
+              {/* Componente de subida de archivos */}
               <div className="mb-4">
                 <FileUploader
                   bucketName="archivos"
@@ -945,6 +980,7 @@ function TareaModal({
                 />
               </div>
 
+              {/* Lista de archivos subidos */}
               <div className="mt-4">
                 <h4 className="font-medium text-sm mb-2">Evidencias subidas:</h4>
                 <ul className="list-disc list-inside max-h-32 overflow-y-auto border rounded p-2 bg-gray-50">
@@ -970,6 +1006,7 @@ function TareaModal({
           )}
         </div>
 
+        {/* Botones de acción */}
         <div className="flex justify-end space-x-2 mt-4 sticky bottom-0 bg-white pt-4 border-t">
           <CustomButton variant="outline" onClick={onClose}>Cancelar</CustomButton>
           <CustomButton onClick={handleSave}>Guardar Tarea</CustomButton>
