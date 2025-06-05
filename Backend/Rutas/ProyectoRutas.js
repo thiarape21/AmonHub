@@ -29,7 +29,6 @@ router.get('/proyectos', async (req, res) => {
       .select('*, Tareas(*)');
     
     if (error) throw error;
-    console.log("data", data);
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });

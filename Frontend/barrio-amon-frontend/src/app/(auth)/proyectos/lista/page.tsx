@@ -171,7 +171,6 @@ export default function ProyectosListaPage() {
                 const objetivo = objetivos.find(o => o.id === proyecto.objetivo_id);
                 // Determine project status based on tasks
                 const projectStatus = getProjectStatus(proyecto.Tareas);
-                console.log("proyectoxxx", proyecto);
                 return (
                   <tr key={proyecto.id} className="border-b">
                     <td className="py-2 px-4 text-left">{objetivo ? objetivo.nombre : <span className="text-gray-400 italic">Sin objetivo</span>}</td>
