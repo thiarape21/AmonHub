@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { CustomButton } from "@/components/ui/custom-button";
 import { Fragment } from "react";
 import { useRouter } from "next/navigation";
+import { FileUploader } from "@/components/storage/FileUploader";
 
 export interface Proyecto {
   id?: number;
@@ -15,6 +16,7 @@ export interface Proyecto {
   colaboradores: string;
   responsable: string;
   Tareas?: Tarea[];
+  IndicadoresProyecto?: IndicadorProyecto[];
 }
 
 interface ObjetivoSmart {
@@ -25,10 +27,10 @@ interface ObjetivoSmart {
   cumplida: boolean;
 }
 
-interface Pdf {
+interface IndicadorProyecto {
   id?: number;
-  nombre: string;
-  url: string;
+  tipo: string;
+  valor: string;
   proyecto_id?: number;
 }
 
@@ -42,6 +44,35 @@ interface Tarea {
   evidencias?: File[];
   cancel_reason?: string;
 }
+
+interface UploadedFile {
+  file: string;
+  url: string;
+  data: any;
+}
+
+const API_BASE_URL = "http://localhost:3030/api";
+
+const apiCall = async (url: string, options: RequestInit = {}) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Error en API call ${url}:`, error);
+    throw error;
+  }
+};
 
 export default function ProyectoForm({
   modo,
@@ -73,10 +104,11 @@ export default function ProyectoForm({
   const [usuarios, setUsuarios] = useState<{ id: string; full_name: string }[]>([]);
   const [objetivosSmart, setObjetivosSmart] = useState<ObjetivoSmart[]>([]);
   const [nuevoSmart, setNuevoSmart] = useState<{ nombre: string; descripcion: string }>({ nombre: "", descripcion: "" });
-  const [pdfs, setPdfs] = useState<File[]>([]);
+  const [indicadoresProyecto, setIndicadoresProyecto] = useState<IndicadorProyecto[]>([]);
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [showTareaModal, setShowTareaModal] = useState(false);
   const [editTarea, setEditTarea] = useState<Tarea | null>(null);
+  const [uploadMessage, setUploadMessage] = useState('');
 
   useEffect(() => {
     fetch("http://localhost:3030/api/objetivos")
@@ -110,16 +142,14 @@ export default function ProyectoForm({
           setObjetivosSmart([]);
         });
 
-      fetch(`http://localhost:3030/api/proyectos/${proyecto.id}/pdfs`)
+      fetch(`http://localhost:3030/api/proyectos/${proyecto.id}/indicadores-proyecto`)
         .then((res) => res.json())
         .then((data) => {
-          if (Array.isArray(data)) {
-            // Aquí podrías manejar los PDFs existentes si es necesario
-          }
+          if (Array.isArray(data)) setIndicadoresProyecto(data);
         })
         .catch(error => {
-          console.error("Error fetching pdfs:", error);
-          // Handle PDF fetch error if needed
+          console.error("Error fetching indicadores de proyecto:", error);
+          setIndicadoresProyecto([]);
         });
 
       // Fetch existing tasks if editing
@@ -151,8 +181,6 @@ export default function ProyectoForm({
         : `http://localhost:3030/api/proyectos/${proyecto.id}`;
       const method = modo === "crear" ? "POST" : "PUT";
 
-      console.log("Formulario:", form);
-      // Excluye tareas del objeto enviado
       const { Tareas, ...formSinTareas } = form;
 
       const res = await fetch(url, {
@@ -187,22 +215,8 @@ export default function ProyectoForm({
         });
       }
 
-      if (pdfs.length > 0) {
-        const formData = new FormData();
-        pdfs.forEach((file, index) => {
-          formData.append(`pdfs`, file);
-        });
-
-        await fetch(`http://localhost:3030/api/proyectos/${proyectoGuardado.id}/pdfs`, {
-          method: "POST",
-          body: formData,
-        });
-      }
-
-      console.log("Tareas:", auxTareas);
       // Guardar tareas (crear o actualizar)
       for (const tarea of (auxTareas ?? [])) {
-        console.log("Tarea:", tarea);
         // Elimina campos que no existen en la tabla si es necesario
         const { id, evidencias, ...rest } = tarea;
         const tareaData = { ...rest, proyecto_id: proyectoGuardado.id } as any;
@@ -215,7 +229,6 @@ export default function ProyectoForm({
             body: JSON.stringify(tareaData),
           });
         } else {
-          console.log("Actualizando tarea existente:", tareaData);
           // Actualizar tarea existente
           await fetch(`http://localhost:3030/api/tareas/${id}`, {
             method: "PUT",
@@ -298,13 +311,31 @@ export default function ProyectoForm({
   const handleCheckSmart = (idx: number) => {
     setObjetivosSmart(objetivosSmart.map((o, i) => i === idx ? { ...o, cumplida: !o.cumplida } : o));
   };
-  const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setPdfs([...pdfs, ...Array.from(e.target.files)]);
+  const handleRemoveIndicador = async (idx: number) => {
+    const indicadorToRemove = indicadoresProyecto[idx];
+    if (indicadorToRemove.id) {
+      try {
+        const response = await fetch(`http://localhost:3030/api/indicadores-proyecto/${indicadorToRemove.id}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          setIndicadoresProyecto(indicadoresProyecto.filter((_, i) => i !== idx));
+          setUploadMessage('Indicador eliminado exitosamente');
+          setTimeout(() => setUploadMessage(''), 3000);
+        } else {
+          throw new Error('Error al eliminar el indicador');
+        }
+      } catch (error) {
+        console.error('Error deleting indicator:', error);
+        setUploadMessage('Error al eliminar el indicador');
+        setTimeout(() => setUploadMessage(''), 3000);
+      }
+    } else {
+      setIndicadoresProyecto(indicadoresProyecto.filter((_, i) => i !== idx));
+      setUploadMessage('Indicador eliminado localmente');
+      setTimeout(() => setUploadMessage(''), 3000);
     }
-  };
-  const handleRemovePdf = (idx: number) => {
-    setPdfs(pdfs.filter((_, i) => i !== idx));
   };
 
   const handleAddTarea = () => {
@@ -313,13 +344,9 @@ export default function ProyectoForm({
   };
   const handleEditTarea = (tarea: Tarea) => {
     setEditTarea(tarea);
-    console.log("TAREA:", tarea);
     setShowTareaModal(true);
   };
   const handleSaveTarea = (tarea: Tarea) => {
-    console.log("Guardando tarea:", tarea);
-    console.log("Tarea siendo editada:", editTarea);
-    
     if (editTarea) {
       setTareas(prevTareas =>
         prevTareas.map(t => t === editTarea ? tarea : t)
@@ -334,8 +361,6 @@ export default function ProyectoForm({
   const handleDeleteTarea = (tarea: Tarea) => {
     // Tareas should not be deleted, only canceled.
     // We will remove the delete functionality here.
-    // setTareas(tareas.filter(t => t !== tarea));
-    console.log("Tarea deletion is disabled. Use cancellation.");
   };
 
   const handleTaskCompletionToggle = (taskToToggle: Tarea) => {
@@ -360,6 +385,47 @@ export default function ProyectoForm({
          ? { ...task, cancel_reason: reason }
          : task
      ));
+  };
+
+  // Nueva función para manejar archivos subidos desde Supabase Storage
+  const handleFileUploadComplete = async (uploadedFiles: any[]) => {
+    if (!proyecto.id) {
+      setUploadMessage('Error: No se puede subir archivos sin un proyecto seleccionado');
+      return;
+    }
+
+    try {
+      // Guardar cada archivo subido como indicador en la base de datos
+      for (const file of uploadedFiles) {
+        const response = await fetch(`http://localhost:3030/api/proyectos/${proyecto.id}/indicadores-proyecto`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tipo: file.name || file.type, // Usar el nombre del archivo si está disponible, sino usar el tipo
+            valor: file.url
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Error al guardar el archivo');
+        }
+      }
+      
+      setUploadMessage(`${uploadedFiles.length} archivo(s) subido(s) exitosamente`);
+      setTimeout(() => setUploadMessage(''), 3000);
+      
+      // After successful uploads, refetch the updated list of indicators
+      const updatedIndicators = await fetch(`http://localhost:3030/api/proyectos/${proyecto.id}/indicadores-proyecto`).then(res => res.json());
+      if (Array.isArray(updatedIndicators)) {
+        setIndicadoresProyecto(updatedIndicators);
+      }
+    } catch (error) {
+      console.error('Error saving files:', error);
+      setUploadMessage('Error al guardar los indicadores en la base de datos');
+      setTimeout(() => setUploadMessage(''), 3000);
+    }
   };
 
   return (
@@ -464,7 +530,6 @@ export default function ProyectoForm({
         <label className="block font-semibold">Tareas del Proyecto</label>
         <ul className="mb-2">
           {tareas.map((t, idx) => (
-            console.log("Tarea:", t),
             <li key={t.id || idx} className="flex flex-col gap-2 border-b last:border-b-0 py-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -535,20 +600,53 @@ export default function ProyectoForm({
               <option value="En proceso">En proceso</option>
               <option value="Finalizado">Finalizado</option>
               <option value="Atrasado">Atrasado</option>
-              {/* Agrega aquí otras opciones si es necesario en el futuro, pero solo 'Finalizado' y 'Atrasado' por ahora */}
             </select>
           </div>
           <div>
             <label className="block font-semibold">Evidencias (PDFs)</label>
-            <input type="file" accept="application/pdf" multiple onChange={handlePdfChange} />
-            <ul className="mt-2">
-              {pdfs.map((file, idx) => (
-                <li key={idx} className="flex items-center gap-2">
-                  <span>{file.name}</span>
-                  <button type="button" className="text-red-500" onClick={() => handleRemovePdf(idx)}>Eliminar</button>
-                </li>
-              ))}
-            </ul>
+            
+            {/* Message Display */}
+            {uploadMessage && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-blue-800 text-sm">{uploadMessage}</p>
+              </div>
+            )}
+            
+            {/* File Uploader */}
+            <div className="mb-4">
+              <FileUploader
+                bucketName="archivos"
+                folder={`proyectos/${proyecto.id}`}
+                multiple={true}
+                maxSize={10}
+                acceptedTypes=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+                onUploadComplete={handleFileUploadComplete}
+                className="border-2 border-dashed border-gray-300 rounded-lg"
+              />
+            </div>
+
+            {/* List of uploaded files */}
+            <div className="mt-4">
+              <h4 className="font-medium text-sm mb-2">Indicadores subidos:</h4>
+              <ul className="list-disc list-inside max-h-32 overflow-y-auto border rounded p-2 bg-gray-50">
+                {(indicadoresProyecto || []).map((indicador, idx) => (
+                  <li key={idx} className="flex justify-between items-center border-b last:border-b-0 py-1">
+                    <span className="text-sm">
+                      <a
+                        href={indicador.valor}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        📄 {indicador.tipo}
+                      </a>
+                    </span>
+                    <CustomButton variant="destructive" size="sm" onClick={() => handleRemoveIndicador(idx)}>×</CustomButton>
+                  </li>
+                ))}
+                {indicadoresProyecto.length === 0 && <li className="text-sm text-gray-500">- No hay indicadores subidos -</li>}
+              </ul>
+            </div>
           </div>
         </>
       )}
@@ -602,10 +700,12 @@ function TareaModal({
     evidencias: [],
     cancel_reason: undefined,
   });
+  const [indicadoresTarea, setIndicadoresTarea] = useState<IndicadorProyecto[]>([]);
+  const [uploadMessage, setUploadMessage] = useState('');
 
   // Update form state when the tarea prop changes (when editing a different task)
   useEffect(() => {
-    setFormTarea(tarea || { // Reset to empty or load new tarea
+    setFormTarea(tarea || {
       nombre: "",
       responsable: "",
       fecha_inicio: "",
@@ -614,7 +714,22 @@ function TareaModal({
       evidencias: [],
       cancel_reason: undefined,
     });
-  }, [tarea]); // Depend on tarea prop
+
+    // Fetch task indicators if editing an existing task
+    if (tarea?.id) {
+      fetch(`http://localhost:3030/api/tareas/${tarea.id}/indicadores`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setIndicadoresTarea(data);
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching task indicators:', error);
+          setIndicadoresTarea([]);
+        });
+    }
+  }, [tarea]);
 
   const handleChangeTarea = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const target = e.target;
@@ -626,7 +741,7 @@ function TareaModal({
       const checked = target.checked;
       setFormTarea(prev => ({
         ...prev,
-        [name]: checked // Assuming the checkbox name corresponds to a boolean state property, e.g., isCompleted
+        [name]: checked
       }));
     } else {
       setFormTarea(prev => ({
@@ -637,161 +752,225 @@ function TareaModal({
   };
 
   const handleSave = () => {
-    // Add validation here if needed
-    console.log("Guardando tareaxxx:", formTarea);
     onSave(formTarea);
-    onClose(); // Close modal after saving
+    onClose();
   };
 
-  const handleEvidenciaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      // Append new files to the existing evidencias array
-      setFormTarea({ ...formTarea, evidencias: [...(formTarea.evidencias || []), ...Array.from(e.target.files)] });
+  const handleFileUploadComplete = async (uploadedFiles: any[]) => {
+    if (!tarea?.id) {
+      setUploadMessage('Error: No se puede subir archivos sin una tarea guardada');
+      return;
+    }
+
+    try {
+      // Guardar cada archivo subido como indicador en la base de datos
+      for (const file of uploadedFiles) {
+        const response = await fetch(`http://localhost:3030/api/tareas/${tarea.id}/indicadores`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tipo: file.name || file.type,
+            valor: file.url
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Error al guardar el archivo');
+        }
+      }
+      
+      setUploadMessage(`${uploadedFiles.length} archivo(s) subido(s) exitosamente`);
+      setTimeout(() => setUploadMessage(''), 3000);
+      
+      // After successful uploads, refetch the updated list of indicators
+      const updatedIndicators = await fetch(`http://localhost:3030/api/tareas/${tarea.id}/indicadores`).then(res => res.json());
+      if (Array.isArray(updatedIndicators)) {
+        setIndicadoresTarea(updatedIndicators);
+      }
+    } catch (error) {
+      console.error('Error saving files:', error);
+      setUploadMessage('Error al guardar los indicadores en la base de datos');
+      setTimeout(() => setUploadMessage(''), 3000);
     }
   };
 
-   const handleRemoveEvidencia = (idx: number) => {
-    setFormTarea({ ...formTarea, evidencias: (formTarea.evidencias || []).filter((_, i) => i !== idx) });
+  const handleRemoveIndicador = async (idx: number) => {
+    const indicadorToRemove = indicadoresTarea[idx];
+    if (indicadorToRemove.id) {
+      try {
+        const response = await fetch(`http://localhost:3030/api/indicadores-tarea/${indicadorToRemove.id}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          setIndicadoresTarea(indicadoresTarea.filter((_, i) => i !== idx));
+          setUploadMessage('Indicador eliminado exitosamente');
+          setTimeout(() => setUploadMessage(''), 3000);
+        } else {
+          throw new Error('Error al eliminar el indicador');
+        }
+      } catch (error) {
+        console.error('Error deleting indicator:', error);
+        setUploadMessage('Error al eliminar el indicador');
+        setTimeout(() => setUploadMessage(''), 3000);
+      }
+    }
   };
 
   if (!show) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/30 backdrop-blur-sm">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/30 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md my-8">
         <h2 className="text-2xl font-bold mb-4 text-[#546b75]">{tarea ? "Editar Tarea" : "Crear Tarea"}</h2>
-        <div className="mb-4">
-          <label htmlFor="nombreTarea" className="block text-sm font-medium text-gray-700">Nombre</label>
-          <input
-            type="text"
-            id="nombreTarea"
-            name="nombre"
-            value={formTarea.nombre}
-            onChange={handleChangeTarea}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label htmlFor="responsableTarea" className="block text-sm font-medium text-gray-700">Responsable</label>
-          <select
-            id="responsableTarea"
-            name="responsable"
-            value={formTarea.responsable}
-            onChange={handleChangeTarea}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-            required
-          >
-            <option value="">Seleccione un responsable</option>
-            {usuarios.map(user => (
-              <option key={user.id} value={user.full_name}>{user.full_name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="mb-4">
-          <label htmlFor="fechaInicioTarea" className="block text-sm font-medium text-gray-700">Fecha Inicio</label>
-          <input
-            type="date"
-            id="fechaInicioTarea"
-            name="fecha_inicio"
-            value={formTarea.fecha_inicio}
-            onChange={handleChangeTarea}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label htmlFor="fechaFinTarea" className="block text-sm font-medium text-gray-700">Fecha Fin</label>
-          <input
-            type="date"
-            id="fechaFinTarea"
-            name="fecha_fin"
-            value={formTarea.fecha_fin}
-            onChange={handleChangeTarea}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-            required
-          />
-        </div>
-         {/* Mostrar estado solo en modo edición de tarea */}
-        {tarea && (
-           <div className="mb-4">
-             <label htmlFor="estadoTarea" className="block text-sm font-medium text-gray-700">Estado</label>
-             <select
-               id="estadoTarea"
-               name="estado"
-               value={formTarea.estado}
-               onChange={handleChangeTarea}
-               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-               required
-               disabled={formTarea.estado === 'Cancelada'} // Disable dropdown if canceled
-             >
-               <option value="Pendiente">Pendiente</option>
-               <option value="En proceso">En proceso</option>
-               <option value="Completada">Completada</option>
-               {/* 'Cancelada' state is handled by the cancel button, not this dropdown */}
-               {/* <option value="Cancelada">Cancelada</option> */}
-             </select>
-           </div>
-        )}
-        
-        {/* Checkbox for completion in the modal */}
-        <div className="mb-4">
-           <label htmlFor="taskCompleted" className="block text-sm font-medium text-gray-700">Completada</label>
-           <input
-             type="checkbox"
-             id="taskCompleted"
-             checked={formTarea.estado === 'Completada'}
-             onChange={(e) => setFormTarea({...formTarea, estado: e.target.checked ? 'Completada' : 'Pendiente', cancel_reason: undefined})} // Update state based on checkbox
-             className="form-checkbox"
-             disabled={formTarea.estado === 'Cancelada'} // Disable if canceled
-           />
-        </div>
-
-        {/* Show cancel reason input in modal if canceled */}
-        {formTarea.estado === 'Cancelada' && (
-           <div className="mb-4">
-             <label htmlFor="cancel_reason" className="block text-sm font-medium text-gray-700">Razón de Cancelación</label>
-             <textarea
-               id="cancel_reason"
-               name="cancel_reason"
-               value={formTarea.cancel_reason || ''}
-               onChange={handleChangeTarea}
-               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-               rows={2}
-             />
-           </div>
-        )}
-        
-        {/* Mostrar campo de evidencia solo en modo edición de tarea */}
-        {tarea && (
+        <div className="space-y-4">
+          <div className="mb-4">
+            <label htmlFor="nombreTarea" className="block text-sm font-medium text-gray-700">Nombre</label>
+            <input
+              type="text"
+              id="nombreTarea"
+              name="nombre"
+              value={formTarea.nombre}
+              onChange={handleChangeTarea}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="responsableTarea" className="block text-sm font-medium text-gray-700">Responsable</label>
+            <select
+              id="responsableTarea"
+              name="responsable"
+              value={formTarea.responsable}
+              onChange={handleChangeTarea}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              required
+            >
+              <option value="">Seleccione un responsable</option>
+              {usuarios.map(user => (
+                <option key={user.id} value={user.full_name}>{user.full_name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="mb-4">
+            <label htmlFor="fechaInicioTarea" className="block text-sm font-medium text-gray-700">Fecha Inicio</label>
+            <input
+              type="date"
+              id="fechaInicioTarea"
+              name="fecha_inicio"
+              value={formTarea.fecha_inicio}
+              onChange={handleChangeTarea}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="fechaFinTarea" className="block text-sm font-medium text-gray-700">Fecha Fin</label>
+            <input
+              type="date"
+              id="fechaFinTarea"
+              name="fecha_fin"
+              value={formTarea.fecha_fin}
+              onChange={handleChangeTarea}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              required
+            />
+          </div>
+          {tarea && (
             <div className="mb-4">
-              <label htmlFor="evidenciaTarea" className="block text-sm font-medium text-gray-700">Evidencia (PDF)</label>
-              <input
-                type="file"
-                id="evidenciaTarea"
-                name="evidencia"
-                accept=".pdf"
-                onChange={handleEvidenciaChange}
-                className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#4A6670] file:text-white hover:file:bg-[#39525a]"
-              />
-               {/* Display selected file names */}
-               {(formTarea.evidencias || []).length > 0 && (
-                 <div className="mt-2">
-                   <p className="text-sm font-medium text-gray-700">Archivos seleccionados:</p>
-                   <ul>
-                     {(formTarea.evidencias || []).map((file, index) => (
-                       <li key={index} className="text-sm text-gray-600 flex justify-between items-center">
-                         {file.name}
-                         <CustomButton size="sm" variant="destructive" onClick={() => handleRemoveEvidencia(index)}>Remover</CustomButton>
-                       </li>
-                     ))}
-                   </ul>
-                 </div>
-               )}
+              <label htmlFor="estadoTarea" className="block text-sm font-medium text-gray-700">Estado</label>
+              <select
+                id="estadoTarea"
+                name="estado"
+                value={formTarea.estado}
+                onChange={handleChangeTarea}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                required
+                disabled={formTarea.estado === 'Cancelada'}
+              >
+                <option value="Pendiente">Pendiente</option>
+                <option value="En proceso">En proceso</option>
+                <option value="Completada">Completada</option>
+              </select>
             </div>
-        )}
+          )}
+          
+          <div className="mb-4">
+            <label htmlFor="taskCompleted" className="block text-sm font-medium text-gray-700">Completada</label>
+            <input
+              type="checkbox"
+              id="taskCompleted"
+              checked={formTarea.estado === 'Completada'}
+              onChange={(e) => setFormTarea({...formTarea, estado: e.target.checked ? 'Completada' : 'Pendiente', cancel_reason: undefined})}
+              className="form-checkbox"
+              disabled={formTarea.estado === 'Cancelada'}
+            />
+          </div>
 
-        <div className="flex justify-end space-x-2 mt-4">
+          {formTarea.estado === 'Cancelada' && (
+            <div className="mb-4">
+              <label htmlFor="cancel_reason" className="block text-sm font-medium text-gray-700">Razón de Cancelación</label>
+              <textarea
+                id="cancel_reason"
+                name="cancel_reason"
+                value={formTarea.cancel_reason || ''}
+                onChange={handleChangeTarea}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                rows={2}
+              />
+            </div>
+          )}
+          
+          {tarea && (
+            <div className="mb-4">
+              <label className="block font-semibold">Evidencias</label>
+              
+              {uploadMessage && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-blue-800 text-sm">{uploadMessage}</p>
+                </div>
+              )}
+              
+              <div className="mb-4">
+                <FileUploader
+                  bucketName="archivos"
+                  folder={`tareas/${tarea.id}`}
+                  multiple={true}
+                  maxSize={10}
+                  acceptedTypes=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+                  onUploadComplete={handleFileUploadComplete}
+                  className="border-2 border-dashed border-gray-300 rounded-lg"
+                />
+              </div>
+
+              <div className="mt-4">
+                <h4 className="font-medium text-sm mb-2">Evidencias subidas:</h4>
+                <ul className="list-disc list-inside max-h-32 overflow-y-auto border rounded p-2 bg-gray-50">
+                  {indicadoresTarea.map((indicador, idx) => (
+                    <li key={idx} className="flex justify-between items-center border-b last:border-b-0 py-1">
+                      <span className="text-sm">
+                        <a
+                          href={indicador.valor}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          📄 {indicador.tipo}
+                        </a>
+                      </span>
+                      <CustomButton variant="destructive" size="sm" onClick={() => handleRemoveIndicador(idx)}>×</CustomButton>
+                    </li>
+                  ))}
+                  {indicadoresTarea.length === 0 && <li className="text-sm text-gray-500">- No hay evidencias subidas -</li>}
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end space-x-2 mt-4 sticky bottom-0 bg-white pt-4 border-t">
           <CustomButton variant="outline" onClick={onClose}>Cancelar</CustomButton>
           <CustomButton onClick={handleSave}>Guardar Tarea</CustomButton>
         </div>
