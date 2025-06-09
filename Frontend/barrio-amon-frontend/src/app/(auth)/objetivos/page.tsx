@@ -1,109 +1,35 @@
 "use client";
 import { useEffect, useState } from "react";
 import { CustomButton } from "@/components/ui/custom-button";
-import Select from 'react-select';
+import Select from "react-select";
 
 interface FodaElement {
-  id: string;
+  id: number;
   texto: string;
-  tipo: 'fortaleza' | 'oportunidad' | 'debilidad' | 'amenaza';
-  dimension: string; // Para agrupar por contenido temático
-  asociado?: string;
+  tipo: "fortaleza" | "oportunidad" | "debilidad" | "amenaza";
+  dimension: string;
+}
+
+interface Meta {
+  id?: string;
+  objetivo_id: number;
+  nombre: string;
+  completado: boolean;
+}
+
+interface Usuario {
+  id: number;
+  full_name: string;
 }
 
 interface Objetivo {
   id?: string;
   nombre: string;
   descripcion: string;
-  elementosFoda: {
-    mantener: FodaElement[]; // Fortalezas a mantener
-    explotar: FodaElement[]; // Oportunidades a explotar
-    corregir: FodaElement[]; // Debilidades a corregir
-    afrontar: FodaElement[]; // Amenazas a afrontar
-  };
-  responsable?: string;
+  responsable_id?: number;
   colaboradores?: string;
-  planesOperativos?: PlanOperativo[];
-  associatedMetas?: Meta[]; // New property for directly associated metas
-}
-
-interface PlanOperativo {
-  id?: string;
-  nombre: string;
-  descripcion: string;
-  elementosFoda: {
-    mantener: FodaElement[];
-    explotar: FodaElement[];
-    corregir: FodaElement[];
-    afrontar: FodaElement[];
-  };
-  responsable?: string;
-  colaboradores?: string;
-  metas: Meta[];
-  anio: number;
-}
-
-interface Meta {
-  id?: string;             // int8 en Supabase
-  objetivo_id: number;    // Relación al objetivo
-  nombre: string;         // Descripción o título de la meta
-  completado: boolean;    // Supabase usa int2 pero aquí se convierte en boolean
-}
-
-
-interface Tarea {
-  id?: string;
-  nombre: string;
-  cumplida: boolean;
-}
-
-async function createObjetivo(objetivo: Omit<Objetivo, "id">): Promise<void> {
-  try {
-    const res = await fetch("http://localhost:3030/api/objetivos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(objetivo),
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.message || "Error al crear el objetivo");
-    }
-  } catch (error) {
-    console.error("Error creating objetivo:", error);
-  }
-}
-
-async function updateObjetivo(id: string, objetivo: Omit<Objetivo, "id">): Promise<void> {
-  try {
-    const res = await fetch(`http://localhost:3030/api/objetivos/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(objetivo),
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.message || "Error al actualizar el objetivo");
-    }
-  } catch (error) {
-    console.error("Error updating objetivo:", error);
-  }
-}
-
-async function deleteObjetivo(id: string): Promise<void> {
-  try {
-    const res = await fetch(`http://localhost:3030/api/objetivos/${id}`, {
-      method: "DELETE",
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.message || "Error al eliminar el objetivo");
-    }
-  } catch (error) {
-    console.error("Error deleting objetivo:", error);
-  }
+  metas_asociadas?: Meta[];
+  foda_ids?: number[];
 }
 
 export default function ObjetivosPage() {
@@ -111,257 +37,158 @@ export default function ObjetivosPage() {
   const [fodaElements, setFodaElements] = useState<FodaElement[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editObjetivo, setEditObjetivo] = useState<Objetivo | null>(null);
-  const [editPlanOperativo, setEditPlanOperativo] = useState<PlanOperativo | null>(null);
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [elementosFoda, setElementosFoda] = useState<Objetivo['elementosFoda']>({
-    mantener: [],
-    explotar: [],
-    corregir: [],
-    afrontar: []
+  const [elementosFoda, setElementosFoda] = useState({
+    mantener: [] as FodaElement[],
+    explotar: [] as FodaElement[],
+    corregir: [] as FodaElement[],
+    afrontar: [] as FodaElement[],
   });
-  const [responsable, setResponsable] = useState("");
+  const [responsableId, setResponsableId] = useState<number | "">("");
   const [colaboradores, setColaboradores] = useState("");
-  const [usuarios, setUsuarios] = useState<{ id: string; full_name: string }[]>([]);
-  const [newAssociatedMetaDescription, setNewAssociatedMetaDescription] = useState('');
-  const [formAssociatedMetas, setFormAssociatedMetas] = useState<Meta[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [newMetaDesc, setNewMetaDesc] = useState("");
+  const [formMetas, setFormMetas] = useState<Meta[]>([]);
 
-  // Derive all available metas from loaded objectives for the select options
-  const allAvailableMetas = objetivos.flatMap(obj => (obj.planesOperativos || []).flatMap(po => po.metas || []));
-  // Ensure uniqueness of metas if necessary, though react-select handles duplicate values based on 'value'
-  const availableMetaOptions = allAvailableMetas.map(meta => ({ value: meta.id, label: meta.nombre }));
+  useEffect(() => {
+    fetchData();
+  }, []);
 async function fetchData() {
   try {
-    // 1. Fetch objetivos
-    const objetivosRes = await fetch("http://localhost:3030/api/objetivos", {
-      cache: "no-store",
-      signal: AbortSignal.timeout(5000),
-    });
+    const [objetivosRes, fodaRes, usersRes] = await Promise.all([
+      fetch("http://localhost:3030/api/objetivos"),
+      fetch("http://localhost:3030/api/analisis-foda"),
+      fetch("http://localhost:3030/api/usuarios"),
+    ]);
 
-    if (!objetivosRes.ok) {
-      throw new Error(`Error fetching objetivos: ${objetivosRes.statusText}`);
-    }
+    const [objetivosData, fodaData, usersData] = await Promise.all([
+      objetivosRes.json(),
+      fodaRes.json(),
+      usersRes.json(),
+    ]);
 
-    const objetivosData = await objetivosRes.json();
-    if (Array.isArray(objetivosData)) {
-      setObjetivos(objetivosData);
-    } else {
-      throw new Error("API returned non-array data for objetivos");
-    }
-  } catch (error) {
-    console.error("Error fetching objetivos:", error);
-  }
+    console.log("Objetivos recibidos:", objetivosData); // <-- IMPRIME AQUÍ
+    console.log("FODA recibidos:", fodaData);
+    console.log("Usuarios recibidos:", usersData);
 
-  try {
-    // 2. Fetch FODA elements
-    const fodaRes = await fetch("http://localhost:3030/api/analisis-foda", {
-      cache: "no-store",
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (!fodaRes.ok) {
-      throw new Error(`Error fetching FODA elements: ${fodaRes.statusText}`);
-    }
-
-    const fodaData = await fodaRes.json();
-    if (Array.isArray(fodaData)) {
-      setFodaElements(fodaData);
-    } else {
-      throw new Error("API returned non-array data for FODA elements");
-    }
-  } catch (error) {
-    console.error("Error fetching FODA elements:", error);
-  }
-
-  try {
-    // 3. Fetch usuarios
-    const usersRes = await fetch("http://localhost:3030/api/usuarios", {
-      cache: "no-store",
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (!usersRes.ok) {
-      throw new Error(`Error fetching usuarios: ${usersRes.statusText}`);
-    }
-
-    const usersData = await usersRes.json();
+    if (Array.isArray(objetivosData)) setObjetivos(objetivosData);
+    if (Array.isArray(fodaData)) setFodaElements(fodaData);
     if (Array.isArray(usersData)) {
-      setUsuarios(usersData);
-    } else {
-      throw new Error("API returned non-array data for usuarios");
+      const valid = usersData.filter((u: any): u is Usuario =>
+        typeof u.id === "number" && typeof u.full_name === "string"
+      );
+      setUsuarios(valid);
     }
   } catch (error) {
-    console.error("Error fetching usuarios:", error);
-  }
-
-  try {
-    // 4. Fetch metas asociadas (tabla "meta")
-    const metasRes = await fetch("http://localhost:3030/api/metas", {
-      cache: "no-store",
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (!metasRes.ok) {
-      throw new Error(`Error fetching metas: ${metasRes.statusText}`);
-    }
-
-    const metasData = await metasRes.json();
-    if (Array.isArray(metasData)) {
-      setFormAssociatedMetas(metasData); // Cargar metas asociadas al formulario
-    } else {
-      throw new Error("API returned non-array data for metas");
-    }
-  } catch (error) {
-    console.error("Error fetching metas:", error);
+    console.error("Error al cargar datos:", error);
   }
 }
 
 
-  // === Effect Hook for Initial Data Fetching ===
-  useEffect(() => {
-    fetchData();
-  }, []); // Empty dependency array means this effect runs only once on mount
-
-
-  // Options for react-select dropdowns, filtered by type
-  const fortalezaOptions = fodaElements
-    .filter(f => f.tipo === 'fortaleza')
-    .map(f => ({ value: f.id, label: f.texto }));
-
-  const oportunidadOptions = fodaElements
-    .filter(f => f.tipo === 'oportunidad')
-    .map(f => ({ value: f.id, label: f.texto }));
-
-  const debilidadOptions = fodaElements
-    .filter(f => f.tipo === 'debilidad')
-    .map(f => ({ value: f.id, label: f.texto }));
-
-  const amenazaOptions = fodaElements
-    .filter(f => f.tipo === 'amenaza')
-    .map(f => ({ value: f.id, label: f.texto }));
-
   const resetForm = () => {
-  setEditObjetivo(null);
-  setEditPlanOperativo(null);
-  setNombre("");
-  setDescripcion("");
-  setElementosFoda({ mantener: [], explotar: [], corregir: [], afrontar: [] });
-  setResponsable("");
-  setColaboradores("");
-  setFormAssociatedMetas([]); // Reset metas asociadas
-};
-
-const handleSave = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  const baseObjetivo = {
-    nombre,
-    descripcion,
-    elementosFoda,
-    responsable,
-    colaboradores,
+    setEditObjetivo(null);
+    setNombre("");
+    setDescripcion("");
+    setElementosFoda({ mantener: [], explotar: [], corregir: [], afrontar: [] });
+    setResponsableId("");
+    setColaboradores("");
+    setFormMetas([]);
+    setNewMetaDesc("");
   };
 
-  if (editObjetivo) {
-    const updatedObjetivo = {
-      ...editObjetivo,
-      ...baseObjetivo
-    };
-    await updateObjetivo(editObjetivo.id!, updatedObjetivo);
-  } else {
-    const nuevoObjetivo: Omit<Objetivo, "id"> = {
-      ...baseObjetivo,
-      planesOperativos: [],
-      associatedMetas: formAssociatedMetas
-    };
-    await createObjetivo(nuevoObjetivo);
-  }
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  fetchData();
-  setShowForm(false);
-  resetForm();
-};
+    const foda_ids = [
+      ...elementosFoda.mantener,
+      ...elementosFoda.explotar,
+      ...elementosFoda.corregir,
+      ...elementosFoda.afrontar,
+    ].map((e) => e.id);
+
+    const metas_asociadas = formMetas.map((meta) => ({
+      id: meta.id,
+      objetivo_id: meta.objetivo_id,
+      nombre: meta.nombre,
+      completado: meta.completado,
+    }));
+
+    const objetivo: Objetivo = {
+      nombre,
+      descripcion,
+      ...(typeof responsableId === "number" ? { responsable_id: responsableId } : {}),
+      colaboradores,
+      metas_asociadas,
+      foda_ids,
+    };
+
+    const url = editObjetivo
+      ? `http://localhost:3030/api/objetivos/${editObjetivo.id}`
+      : "http://localhost:3030/api/objetivos";
+
+    const method = editObjetivo ? "PUT" : "POST";
+
+    await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(objetivo),
+    });
+
+    fetchData();
+    setShowForm(false);
+    resetForm();
+  };
 
 const handleEdit = (objetivo: Objetivo) => {
   setEditObjetivo(objetivo);
   setNombre(objetivo.nombre);
   setDescripcion(objetivo.descripcion);
+
+  // Cargar FODA asignado
   setElementosFoda({
-    mantener: objetivo.elementosFoda?.mantener || [],
-    explotar: objetivo.elementosFoda?.explotar || [],
-    corregir: objetivo.elementosFoda?.corregir || [],
-    afrontar: objetivo.elementosFoda?.afrontar || [],
+    mantener: fodaElements.filter(f => objetivo.foda_ids?.includes(f.id) && f.tipo === "fortaleza"),
+    explotar: fodaElements.filter(f => objetivo.foda_ids?.includes(f.id) && f.tipo === "oportunidad"),
+    corregir: fodaElements.filter(f => objetivo.foda_ids?.includes(f.id) && f.tipo === "debilidad"),
+    afrontar: fodaElements.filter(f => objetivo.foda_ids?.includes(f.id) && f.tipo === "amenaza"),
   });
-  setResponsable(objetivo.responsable || "");
+
+  setResponsableId(objetivo.responsable_id ?? "");
   setColaboradores(objetivo.colaboradores || "");
-  setFormAssociatedMetas(objetivo.associatedMetas || []);
+  setFormMetas(objetivo.metas_asociadas || []);
   setShowForm(true);
 };
 
-const handleDelete = async (id?: string) => {
-  if (!id) return;
-  if (!confirm("¿Seguro que deseas eliminar este objetivo?")) return;
-  try {
-    await deleteObjetivo(id);
-    await fetchData();
-  } catch (error) {
-    console.error("Error deleting objetivo:", error);
-  }
-};
-const handleAddAssociatedMeta = () => {
-  if (newAssociatedMetaDescription.trim()) {
-    const newMeta: Meta = {
+
+  const handleDelete = async (id?: string) => {
+    if (!id || !confirm("¿Seguro que deseas eliminar este objetivo?")) return;
+    await fetch(`http://localhost:3030/api/objetivos/${id}`, { method: "DELETE" });
+    fetchData();
+  };
+
+  const handleAddMeta = () => {
+    if (!newMetaDesc.trim()) return;
+    const nuevaMeta: Meta = {
       id: `temp-${Date.now()}`,
       objetivo_id: editObjetivo?.id ? Number(editObjetivo.id) : -1,
-      nombre: newAssociatedMetaDescription.trim(),
-      completado: false
+      nombre: newMetaDesc.trim(),
+      completado: false,
     };
+    setFormMetas((prev) => [...prev, nuevaMeta]);
+    setNewMetaDesc("");
+  };
 
-    if (editObjetivo) {
-      setEditObjetivo(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          associatedMetas: [...(prev.associatedMetas || []), newMeta]
-        };
-      });
-    } else {
-      setFormAssociatedMetas(prev => [...prev, newMeta]);
-    }
-
-    setNewAssociatedMetaDescription('');
-  }
-};
-
-const handleAssociatedMetaCompletionToggle = (metaId: string) => {
-  if (editObjetivo) {
-    setEditObjetivo(prev => {
-      if (!prev) return null;
-      const updated = (prev.associatedMetas || []).map(meta =>
-        meta.id === metaId ? { ...meta, completado: !meta.completado } : meta
-      );
-      return { ...prev, associatedMetas: updated };
-    });
-  } else {
-    setFormAssociatedMetas(prev =>
-      prev.map(meta =>
-        meta.id === metaId ? { ...meta, completado: !meta.completado } : meta
-      )
+  const toggleMeta = (metaId: string) => {
+    setFormMetas((prev) =>
+      prev.map((meta) => (meta.id === metaId ? { ...meta, completado: !meta.completado } : meta))
     );
-  }
-};
-
-
-
-  return (
+  };
+return (
   <div className="container mx-auto py-8">
     <h1 className="text-4xl font-bold text-center mb-6 text-[#546b70]">OBJETIVOS ESTRATÉGICOS</h1>
 
     <div className="flex justify-end mb-4">
-      <CustomButton onClick={() => {
-        setShowForm(true);
-        resetForm();
-      }}>
+      <CustomButton onClick={() => { setShowForm(true); resetForm(); }}>
         Agregar Objetivo Estratégico
       </CustomButton>
     </div>
@@ -372,10 +199,10 @@ const handleAssociatedMetaCompletionToggle = (metaId: string) => {
           <tr className="bg-[#4A6670] text-white">
             <th className="border py-2 px-4 text-left">Nombre</th>
             <th className="border py-2 px-4 text-left">Descripción</th>
-            <th className="border py-2 px-4 text-left">Metas (Cumplidas/Totales)</th>
-            <th className="border py-2 px-4 text-left">FODA Asociado</th>
+            <th className="border py-2 px-4 text-left">Metas</th>
             <th className="border py-2 px-4 text-left">Responsable</th>
             <th className="border py-2 px-4 text-left">Colaboradores</th>
+            <th className="border py-2 px-4 text-left">FODA</th>
             <th className="border py-2 px-4 text-left">Acciones</th>
           </tr>
         </thead>
@@ -383,81 +210,169 @@ const handleAssociatedMetaCompletionToggle = (metaId: string) => {
           {objetivos.length === 0 ? (
             <tr>
               <td colSpan={7} className="border py-2 px-4 text-center text-gray-500 italic">
-                No hay objetivos estratégicos registrados.
+                No hay objetivos registrados.
               </td>
             </tr>
-          ) : (
-            objetivos.map((objetivo) => {
-              const metas = objetivo.associatedMetas || [];
-              const total = metas.length;
-              const cumplidas = metas.filter(m => m.completado).length;
-              const foda = objetivo.elementosFoda || { mantener: [], explotar: [], corregir: [], afrontar: [] };
+          ) : objetivos.map((objetivo) => {
+            const metas = objetivo.metas_asociadas || [];
+            const total = metas.length;
+            const cumplidas = metas.filter((m) => m.completado).length;
+            const responsable = usuarios.find((u) => u.id === objetivo.responsable_id)?.full_name || "N/A";
 
-              return (
-                <tr key={objetivo.id} className="hover:bg-gray-100">
-                  <td className="border py-2 px-4 font-medium">{objetivo.nombre}</td>
-                  <td className="border py-2 px-4 text-sm">{objetivo.descripcion}</td>
-                  <td className="border py-2 px-4 text-sm">{cumplidas}/{total}</td>
-                  <td className="border py-2 px-4 text-sm">
-                    {foda.mantener?.length > 0 && <div><strong>Mantener:</strong> {foda.mantener.map(e => e.texto).join(", ")}</div>}
-                    {foda.explotar?.length > 0 && <div><strong>Explotar:</strong> {foda.explotar.map(e => e.texto).join(", ")}</div>}
-                    {foda.corregir?.length > 0 && <div><strong>Corregir:</strong> {foda.corregir.map(e => e.texto).join(", ")}</div>}
-                    {foda.afrontar?.length > 0 && <div><strong>Afrontar:</strong> {foda.afrontar.map(e => e.texto).join(", ")}</div>}
-                    {(foda.mantener.length + foda.explotar.length + foda.corregir.length + foda.afrontar.length) === 0 && "-N/A-"}
-                  </td>
-                  <td className="border py-2 px-4 text-sm">{objetivo.responsable || "N/A"}</td>
-                  <td className="border py-2 px-4 text-sm">{objetivo.colaboradores || "N/A"}</td>
-                  <td className="border py-2 px-4 text-sm">
-                    <CustomButton variant="outline" size="sm" onClick={() => handleEdit(objetivo)} className="mr-2">Editar</CustomButton>
-                    <CustomButton variant="destructive" size="sm" onClick={() => handleDelete(objetivo.id)}>Eliminar</CustomButton>
-                  </td>
-                </tr>
-              );
-            })
-          )}
+            const fodaTextos = (objetivo.foda_ids || [])
+              .map(id => fodaElements.find(f => f.id === id))
+              .filter(Boolean)
+              .map(f => `• ${f!.texto}`);
+
+            return (
+              <tr key={objetivo.id} className="hover:bg-gray-100">
+                <td className="border py-2 px-4">{objetivo.nombre}</td>
+                <td className="border py-2 px-4">{objetivo.descripcion}</td>
+                <td className="border py-2 px-4">{cumplidas}/{total}</td>
+                <td className="border py-2 px-4">{responsable}</td>
+                <td className="border py-2 px-4">{objetivo.colaboradores || "N/A"}</td>
+                <td className="border py-2 px-4 whitespace-pre-wrap text-sm">
+                  {fodaTextos.length > 0 ? fodaTextos.join("\n") : "—"}
+                </td>
+                <td className="border py-2 px-4 space-x-2">
+                  <CustomButton size="sm" onClick={() => handleEdit(objetivo)}>Editar</CustomButton>
+                  <CustomButton size="sm" variant="destructive" onClick={() => handleDelete(objetivo.id)}>Eliminar</CustomButton>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
 
-    {/* Formulario de Objetivo con metas actualizadas */}
     {showForm && (
-      <div className="fixed inset-0 flex items-center justify-center z-50 bg-white/30 backdrop-blur-sm">
+      <div className="fixed inset-0 bg-white/30 backdrop-blur-sm flex justify-center items-center z-50">
         <form onSubmit={handleSave} className="bg-white p-6 rounded shadow-lg w-full max-w-2xl overflow-y-auto max-h-[90vh]">
-          <h2 className="text-2xl font-bold mb-4">{editObjetivo ? "Editar Objetivo Estratégico" : "Crear Objetivo Estratégico"}</h2>
+          <h2 className="text-xl font-bold mb-4">{editObjetivo ? "Editar" : "Crear"} Objetivo</h2>
 
-          <input className="w-full border p-2 rounded mb-4" placeholder="Nombre" value={nombre} onChange={e => setNombre(e.target.value)} required />
-          <textarea className="w-full border p-2 rounded mb-4" placeholder="Descripción" value={descripcion} onChange={e => setDescripcion(e.target.value)} required />
+          {/* Nombre */}
+          <input
+            className="w-full border p-2 rounded mb-4"
+            placeholder="Nombre"
+            value={nombre}
+            onChange={e => setNombre(e.target.value)}
+            required
+          />
 
-          {/* Aquí irían los select de FODA (como en tu código anterior) */}
+          {/* Descripción */}
+          <textarea
+            className="w-full border p-2 rounded mb-4"
+            placeholder="Descripción"
+            value={descripcion}
+            onChange={e => setDescripcion(e.target.value)}
+            required
+          />
 
+          {/* Responsable */}
+          <div className="mb-4">
+            <label className="block font-semibold mb-1">Responsable</label>
+            <select
+              className="w-full border p-2 rounded"
+              value={responsableId}
+              onChange={(e) => setResponsableId(Number(e.target.value))}
+              required
+            >
+              <option value="">-- Selecciona un responsable --</option>
+              {usuarios.map(usuario => (
+                <option key={usuario.id} value={usuario.id}>
+                  {usuario.full_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Colaboradores */}
+          <input
+            className="w-full border p-2 rounded mb-4"
+            placeholder="Colaboradores"
+            value={colaboradores}
+            onChange={e => setColaboradores(e.target.value)}
+          />
+
+          {/* FODA */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {["mantener", "explotar", "corregir", "afrontar"].map((categoria) => {
+              const labelMap: Record<string, string> = {
+                mantener: "Fortalezas a Mantener",
+                explotar: "Oportunidades a Explotar",
+                corregir: "Debilidades a Corregir",
+                afrontar: "Amenazas a Afrontar",
+              };
+              const tipoMap: Record<string, FodaElement["tipo"]> = {
+                mantener: "fortaleza",
+                explotar: "oportunidad",
+                corregir: "debilidad",
+                afrontar: "amenaza",
+              };
+              const opciones = fodaElements
+                .filter((f) => f.tipo === tipoMap[categoria])
+                .map((f) => ({ value: f.id, label: f.texto }));
+              return (
+                <div key={categoria}>
+                  <label className="block font-semibold mb-1">{labelMap[categoria]}</label>
+                  <Select
+                    isMulti
+                    options={opciones}
+                    value={elementosFoda[categoria as keyof typeof elementosFoda].map((f) => ({
+                      value: f.id,
+                      label: f.texto,
+                    }))}
+                    onChange={(selected) => {
+                      const seleccionados = (selected as { value: number; label: string }[])
+                        .map(opt => fodaElements.find(f => f.id === opt.value)!);
+                      setElementosFoda(prev => ({ ...prev, [categoria]: seleccionados }));
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Metas asociadas */}
           <div className="mb-4">
             <label className="block font-semibold mb-1">Metas Asociadas</label>
             <div className="flex gap-2 mb-2">
               <input
                 type="text"
                 className="border rounded p-2 flex-1"
-                placeholder="Agregar meta asociada..."
-                value={newAssociatedMetaDescription}
-                onChange={e => setNewAssociatedMetaDescription(e.target.value)}
+                placeholder="Agregar meta..."
+                value={newMetaDesc}
+                onChange={e => setNewMetaDesc(e.target.value)}
               />
-              <CustomButton type="button" onClick={handleAddAssociatedMeta}>Agregar</CustomButton>
+              <CustomButton type="button" onClick={handleAddMeta}>Agregar</CustomButton>
             </div>
             <ul className="list-disc list-inside">
-              {(editObjetivo?.associatedMetas ?? formAssociatedMetas ?? []).map((meta, idx) => (
+              {formMetas.map((meta, idx) => (
                 <li key={meta.id || idx} className="flex gap-2 items-center">
-                  <input type="checkbox" checked={meta.completado} onChange={() => handleAssociatedMetaCompletionToggle(meta.id!)} />
-                  <span className={meta.completado ? "line-through text-gray-500" : ""}>{meta.nombre}</span>
+                  <input
+                    type="checkbox"
+                    checked={meta.completado}
+                    onChange={() => toggleMeta(meta.id!)}
+                  />
+                  <span className={meta.completado ? "line-through text-gray-500" : ""}>
+                    {meta.nombre}
+                  </span>
                 </li>
               ))}
-              {(editObjetivo?.associatedMetas ?? formAssociatedMetas ?? []).length === 0 && (
+              {formMetas.length === 0 && (
                 <li className="text-sm text-gray-500">- No hay metas asociadas agregadas -</li>
               )}
             </ul>
           </div>
 
-          <div className="flex justify-end gap-2 mt-6">
-            <CustomButton type="button" variant="outline" onClick={() => setShowForm(false)}>Cancelar</CustomButton>
-            <CustomButton type="submit">{editObjetivo ? "Guardar Cambios" : "Crear Objetivo"}</CustomButton>
+          {/* Botones */}
+          <div className="flex justify-end gap-2">
+            <CustomButton type="button" variant="outline" onClick={() => setShowForm(false)}>
+              Cancelar
+            </CustomButton>
+            <CustomButton type="submit">
+              {editObjetivo ? "Guardar Cambios" : "Crear Objetivo"}
+            </CustomButton>
           </div>
         </form>
       </div>
@@ -465,6 +380,4 @@ const handleAssociatedMetaCompletionToggle = (metaId: string) => {
   </div>
 );
 
-
-  }
-  
+}

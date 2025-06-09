@@ -240,73 +240,50 @@ router.get("/objetivos", async (req, res) => {
   if (error) return res.status(400).json({ error: error.message });
 
   const { data: metas, error: metasError } = await supabase
-    .from("Metas_Asignadas") // nombre correcto
+    .from("Metas_Asignadas")
     .select("id, objetivos_id, nombre, completado");
 
   if (metasError) return res.status(400).json({ error: metasError.message });
 
-  const objetivosConMetas = objetivos.map(obj => ({
+  const { data: fodaLinks, error: fodaError } = await supabase
+    .from("Objetivo_FODA")
+    .select("objetivo_id, foda_id");
+
+  if (fodaError) return res.status(400).json({ error: fodaError.message });
+
+  const objetivosConRelaciones = objetivos.map(obj => ({
     ...obj,
-    associatedMetas: metas
-      .filter(m => m.objetivos_id === obj.id)
+    metas_asociadas: metas
+      .filter(m => Number(m.objetivos_id) === Number(obj.id))
       .map(m => ({
         id: m.id,
-        description: m.nombre,
-        isCompleted: m.completado === 1,
-        isCanceled: false,
-        cancelReason: null,
-      }))
+        objetivo_id: m.objetivos_id,
+        nombre: m.nombre,
+        completado: m.completado === 1,
+      })),
+    foda_ids: fodaLinks
+      .filter(f => Number(f.objetivo_id) === Number(obj.id))
+      .map(f => f.foda_id)
   }));
 
-  res.json(objetivosConMetas);
+  console.log("Objetivos con metas y FODA:", JSON.stringify(objetivosConRelaciones, null, 2));
+  res.json(objetivosConRelaciones);
 });
 
 
-// Obtener un objetivo específico
-router.get("/objetivos/:id", async (req, res) => {
-  const { id } = req.params;
-
-  const { data: objetivo, error } = await supabase
-    .from("Objetivos")
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (error) return res.status(404).json({ error: error.message });
-
-  const { data: metas, error: metasError } = await supabase
-    .from("Metas_Asignadas")
-    .select("id, nombre, completado")
-    .eq("objetivos_id", id);
-
-  if (metasError) return res.status(400).json({ error: metasError.message });
-
-  objetivo.associatedMetas = metas.map(m => ({
-    id: m.id,
-    description: m.nombre,
-    isCompleted: m.completado === 1,
-    isCanceled: false,
-    cancelReason: null,
-  }));
-
-  res.json(objetivo);
-});
-
-
-// Crear objetivo y metas
 router.post("/objetivos", async (req, res) => {
   const {
     nombre,
     descripcion,
-    analisisfoda_id,
     responsable_id,
     colaboradores,
-    metas_asociadas = []
+    metas_asociadas = [],
+    foda_ids = []
   } = req.body;
 
   const { data: objetivo, error: insertError } = await supabase
     .from("Objetivos")
-    .insert([{ nombre, descripcion, analisisfoda_id, responsable_id, colaboradores }])
+    .insert([{ nombre, descripcion, responsable_id, colaboradores }])
     .select()
     .single();
 
@@ -315,8 +292,8 @@ router.post("/objetivos", async (req, res) => {
   if (metas_asociadas.length > 0) {
     const metas = metas_asociadas.map(meta => ({
       objetivos_id: objetivo.id,
-      nombre: meta.description,
-      completado: meta.isCompleted ? 1 : 0
+      nombre: meta.nombre,
+      completado: meta.completado ? 1 : 0
     }));
 
     const { error: metasError } = await supabase
@@ -326,25 +303,36 @@ router.post("/objetivos", async (req, res) => {
     if (metasError) return res.status(400).json({ error: metasError.message });
   }
 
+  if (foda_ids.length > 0) {
+    const relacionesFoda = foda_ids.map(fodaId => ({
+      objetivo_id: objetivo.id,
+      foda_id: fodaId
+    }));
+
+    const { error: fodaError } = await supabase
+      .from("Objetivo_FODA")
+      .insert(relacionesFoda);
+
+    if (fodaError) return res.status(400).json({ error: fodaError.message });
+  }
+
   res.status(201).json(objetivo);
 });
 
-
-// Actualizar objetivo y metas
 router.put("/objetivos/:id", async (req, res) => {
   const { id } = req.params;
   const {
     nombre,
     descripcion,
-    analisisfoda_id,
     responsable_id,
     colaboradores,
-    metas_asociadas = []
+    metas_asociadas = [],
+    foda_ids = []
   } = req.body;
 
   const { data: objetivo, error: updateError } = await supabase
     .from("Objetivos")
-    .update({ nombre, descripcion, analisisfoda_id, responsable_id, colaboradores })
+    .update({ nombre, descripcion, responsable_id, colaboradores })
     .eq("id", id)
     .select()
     .single();
@@ -356,8 +344,8 @@ router.put("/objetivos/:id", async (req, res) => {
   if (metas_asociadas.length > 0) {
     const metas = metas_asociadas.map(meta => ({
       objetivos_id: id,
-      nombre: meta.description,
-      completado: meta.isCompleted ? 1 : 0
+      nombre: meta.nombre,
+      completado: meta.completado ? 1 : 0
     }));
 
     const { error: metasError } = await supabase
@@ -367,15 +355,29 @@ router.put("/objetivos/:id", async (req, res) => {
     if (metasError) return res.status(400).json({ error: metasError.message });
   }
 
+  await supabase.from("Objetivo_FODA").delete().eq("objetivo_id", id);
+
+  if (foda_ids.length > 0) {
+    const relacionesFoda = foda_ids.map(fodaId => ({
+      objetivo_id: id,
+      foda_id: fodaId
+    }));
+
+    const { error: fodaError } = await supabase
+      .from("Objetivo_FODA")
+      .insert(relacionesFoda);
+
+    if (fodaError) return res.status(400).json({ error: fodaError.message });
+  }
+
   res.json(objetivo);
 });
 
-
-// Eliminar objetivo (y sus metas)
 router.delete("/objetivos/:id", async (req, res) => {
   const { id } = req.params;
 
   await supabase.from("Metas_Asignadas").delete().eq("objetivos_id", id);
+  await supabase.from("Objetivo_FODA").delete().eq("objetivo_id", id);
 
   const { error } = await supabase
     .from("Objetivos")
@@ -385,6 +387,33 @@ router.delete("/objetivos/:id", async (req, res) => {
   if (error) return res.status(400).json({ error: error.message });
   res.status(204).send();
 });
+
+router.get("/metas-asignadas", async (req, res) => {
+  const { data, error } = await supabase
+    .from("Metas_Asignadas")
+    .select("id, objetivos_id, nombre, completado");
+
+  if (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  res.json(data);
+});
+
+router.post("/metas-asignadas", async (req, res) => {
+  const metas = req.body;
+
+  const { error } = await supabase
+    .from("Metas_Asignadas")
+    .insert(metas);
+
+  if (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  res.status(201).json({ success: true });
+});
+
 
 
 // CRUD ObjetivosSmart
@@ -683,6 +712,21 @@ router.delete("/analisis-foda/:id", async (req, res) => {
     res.status(500).json({ message: "Error en el servidor", error: error.message });
   }
 });
+
+router.get("/objetivo-foda", async (req, res) => {
+  const { data, error } = await supabase
+    .from("Objetivo_FODA")
+    .select(`
+      objetivo_id,
+      foda:AnalisisFoda (*)
+    `);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json(data);
+});
+
+
 
 // CRUD Metas
 
