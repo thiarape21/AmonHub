@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import { CustomButton } from "@/components/ui/custom-button";
-import { Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { FileUploader } from "@/components/storage/FileUploader";
 
@@ -48,31 +47,31 @@ interface Tarea {
 interface UploadedFile {
   file: string;
   url: string;
-  data: any;
+  name?: string;
+  type?: string;
+  data?: unknown;
 }
 
-const API_BASE_URL = "http://localhost:3030/api";
+// const apiCall = async (url: string, options: RequestInit = {}) => {
+//   try {
+//     const response = await fetch(`${API_BASE_URL}${url}`, {
+//       headers: {
+//         'Content-Type': 'application/json',
+//         ...options.headers,
+//       },
+//       ...options,
+//     });
 
-const apiCall = async (url: string, options: RequestInit = {}) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    });
+//     if (!response.ok) {
+//       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+//     }
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error(`Error en API call ${url}:`, error);
-    throw error;
-  }
-};
+//     return await response.json();
+//   } catch (error) {
+//     console.error(`Error en API call ${url}:`, error);
+//     throw error;
+//   }
+// };
 
 export default function ProyectoForm({
   modo,
@@ -95,6 +94,7 @@ export default function ProyectoForm({
     fecha_fin: proyecto.fecha_fin || "",
     colaboradores: proyecto.colaboradores || "",
     responsable: proyecto.responsable || "",
+    Tareas: proyecto.Tareas || [],
   });
   const [loading, setLoading] = useState(false);
   const [objetivos, setObjetivos] = useState<{ id: number; nombre: string }[]>([]);
@@ -181,6 +181,7 @@ export default function ProyectoForm({
         : `http://localhost:3030/api/proyectos/${proyecto.id}`;
       const method = modo === "crear" ? "POST" : "PUT";
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { Tareas, ...formSinTareas } = form;
 
       const res = await fetch(url, {
@@ -201,6 +202,7 @@ export default function ProyectoForm({
 
         // Luego, inserta los nuevos
         const objetivosSmartConProyectoId = objetivosSmart.map(obj => {
+           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { id, ...rest } = obj;
           return {
             ...rest,
@@ -218,10 +220,11 @@ export default function ProyectoForm({
       // Guardar tareas (crear o actualizar)
       for (const tarea of (auxTareas ?? [])) {
         // Elimina campos que no existen en la tabla si es necesario
-        const { id, evidencias, ...rest } = tarea;
-        const tareaData = { ...rest, proyecto_id: proyectoGuardado.id } as any;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { evidencias, ...rest } = tarea;
+        const tareaData = { ...rest, proyecto_id: proyectoGuardado.id };
 
-        if (!id) {
+        if (!tarea.id) {
           // Crear nueva tarea
           await fetch(`http://localhost:3030/api/proyectos/${proyectoGuardado.id}/tareas`, {
             method: "POST",
@@ -230,7 +233,7 @@ export default function ProyectoForm({
           });
         } else {
           // Actualizar tarea existente
-          await fetch(`http://localhost:3030/api/tareas/${id}`, {
+          await fetch(`http://localhost:3030/api/tareas/${tarea.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(tareaData),
@@ -348,19 +351,12 @@ export default function ProyectoForm({
   };
   const handleSaveTarea = (tarea: Tarea) => {
     if (editTarea) {
-      setTareas(prevTareas =>
-        prevTareas.map(t => t === editTarea ? tarea : t)
-      );
+      setTareas(prev => prev.map(t => t.id === editTarea.id ? tarea : t));
     } else {
-      setTareas(prevTareas => [...prevTareas, tarea]);
+      setTareas(prev => [...prev, tarea]);
     }
-    
     setShowTareaModal(false);
     setEditTarea(null);
-  };
-  const handleDeleteTarea = (tarea: Tarea) => {
-    // Tareas should not be deleted, only canceled.
-    // We will remove the delete functionality here.
   };
 
   const handleTaskCompletionToggle = (taskToToggle: Tarea) => {
@@ -388,7 +384,7 @@ export default function ProyectoForm({
   };
 
   // Nueva función para manejar archivos subidos desde Supabase Storage
-  const handleFileUploadComplete = async (uploadedFiles: any[]) => {
+  const handleFileUploadComplete = async (uploadedFiles: UploadedFile[]) => {
     if (!proyecto.id) {
       setUploadMessage('Error: No se puede subir archivos sin un proyecto seleccionado');
       return;
@@ -769,7 +765,7 @@ function TareaModal({
   };
 
   // Manejar la subida de archivos
-  const handleFileUploadComplete = async (uploadedFiles: any[]) => {
+  const handleFileUploadComplete = async (uploadedFiles: UploadedFile[]) => {
     if (!tarea?.id) {
       setUploadMessage('Error: No se puede subir archivos sin una tarea guardada');
       return;

@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 
 interface FileUploadResult {
   success: boolean;
-  data?: any;
+  data?: unknown;
   error?: string;
   url?: string;
 }

@@ -16,7 +16,7 @@ interface Proyecto {
   fecha_fin: string;
   evidencias?: string;
   alertas?: string;
-  tareas?: any[];
+  tareas?: Array<Record<string, unknown>>;
   objetivosSmart?: ObjetivoSmart[];
   pdfs?: { name: string; url?: string }[];
 }
@@ -45,9 +45,6 @@ export default function ProyectoDetallePage() {
   const [proyecto, setProyecto] = useState<Proyecto | null>(null);
   const [objetivo, setObjetivo] = useState<Objetivo | null>(null);
   const [objetivosSmart, setObjetivosSmart] = useState<ObjetivoSmart[]>([]);
-  // Estados para tareas y pdfs en modo edición
-  const [tareas, setTareas] = useState<any[]>([]); // Usar any[] temporalmente si la interfaz Tarea no está aquí
-  const [pdfs, setPdfs] = useState<{ name: string; url?: string }[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -60,8 +57,6 @@ export default function ProyectoDetallePage() {
         .then((data) => {
           setProyecto(data);
           // Aquí también deberías cargar tareas y pdfs si tu API los devuelve con el proyecto principal
-          setTareas(data?.tareas || []);
-          setPdfs(data?.pdfs || []);
         });
        // También podrías necesitar fetchear objetivos y usuarios aquí si ProyectoForm los necesita
        // ... fetch objetivos ...

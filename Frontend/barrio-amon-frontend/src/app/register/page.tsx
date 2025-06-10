@@ -1,11 +1,21 @@
 "use client";
 
+import { Suspense } from "react";
+import { AuthCard } from "@/components/auth/auth-card";
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<AuthCard title="Registrarse">Cargando...</AuthCard>}>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Form } from "@/components/ui/form";
 import Link from "next/link";
-import { AuthCard } from "@/components/auth/auth-card";
 import { FormInput } from "@/components/auth/form-input";
 import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 import { useState } from "react";
@@ -31,9 +41,8 @@ const formSchema = z
     path: ["confirmPassword"],
   });
 
-export default function RegisterPage() {
+function RegisterForm() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromUsers = searchParams.get("from") === "usuarios";
@@ -55,7 +64,6 @@ export default function RegisterPage() {
   // Form submission handler
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setErrorMessage(null);
-    setIsLoading(true);
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -97,10 +105,8 @@ export default function RegisterPage() {
         // Otherwise, redirect to login
         router.push("/login?registered=true");
       }
-    } catch (error) {
+    } catch {
       setErrorMessage("Error de conexión con el servidor");
-    } finally {
-      setIsLoading(false);
     }
   }
 

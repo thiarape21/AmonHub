@@ -16,31 +16,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Trash2 } from "lucide-react";
-import { UserForm } from "./user-form";
 import { useState } from "react";
 import { CustomButton } from "@/components/ui/custom-button";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-
-// Map role IDs to their names as per database
-enum UserRole {
-  ADMIN = 1,
-  MEMBER = 2,
-  CONSULTANT = 3,
-}
-
-const RoleNames: Record<UserRole, string> = {
-  [UserRole.ADMIN]: "Administrador",
-  [UserRole.MEMBER]: "Miembro",
-  [UserRole.CONSULTANT]: "Consultor",
-};
-
-interface User {
-  id: string;
-  full_name: string;
-  email: string;
-  role_id: number;
-}
+import { User, UserRole, RoleNames } from "@/types/user";
 
 interface UsersTableProps {
   initialUsers: User[];
@@ -48,9 +27,6 @@ interface UsersTableProps {
 
 export function UsersTable({ initialUsers }: UsersTableProps) {
   const [users, setUsers] = useState<User[]>(initialUsers);
-  const router = useRouter();
-
-  const handleAddUser = (data: Omit<User, "id">) => {};
 
   const handleDeleteUser = async (id: string) => {
     try {

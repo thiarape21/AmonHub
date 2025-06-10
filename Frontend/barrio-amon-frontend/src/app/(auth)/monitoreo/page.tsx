@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 interface Objetivo {
   id: string;
@@ -33,11 +32,6 @@ interface Indicator {
   id: string;
   tipo: 'link' | 'file';
   valor: string;
-}
-
-interface Usuario {
-  id: number;
-  full_name: string;
 }
 
 // ============================================
@@ -88,10 +82,10 @@ const extraerAnio = (fecha: string): number => {
 const fetchObjetivos = async (): Promise<Objetivo[]> => {
   try {
     const data = await apiCall('/objetivos');
-    return data.map((obj: any) => ({
-      id: obj.id.toString(),
-      nombre: obj.nombre,
-      descripcion: obj.descripcion
+    return data.map((obj: Record<string, unknown>) => ({
+      id: String(obj.id),
+      nombre: String(obj.nombre),
+      descripcion: String(obj.descripcion || '')
     }));
   } catch (error) {
     console.error('Error fetching objetivos:', error);
@@ -102,21 +96,28 @@ const fetchObjetivos = async (): Promise<Objetivo[]> => {
 const fetchMetas = async (): Promise<Meta[]> => {
   try {
     const data = await apiCall('/metas');
-    return data.map((meta: any) => ({
-      id: meta.id.toString(),
-      descripcion: meta.descripcion,
-      objetivos: meta.objetivos?.map((obj: any) => obj.objetivo.id.toString()) || [],
-      responsable: meta.responsable?.full_name || 'Sin asignar',
-      responsable_id: meta.responsable_id,
-      fecha_fin: meta.fecha_fin,
-      estado: computarEstadoMeta(meta.actividades),
-      actividades: meta.actividades || [],
-      indicadores: meta.indicadores?.map((ind: any) => ({
-        id: ind.id.toString(),
-        tipo: ind.tipo,
-        valor: ind.valor
-      })) || [],
-      anio: extraerAnio(meta.fecha_fin)
+    return data.map((meta: Record<string, unknown>) => ({
+      id: String(meta.id),
+      descripcion: String(meta.descripcion),
+      objetivos: Array.isArray(meta.objetivos) 
+        ? meta.objetivos.map((obj: Record<string, unknown>) => {
+            const objetivo = obj.objetivo as Record<string, unknown> | undefined;
+            return String(objetivo?.id || '');
+          })
+        : [],
+      responsable: String((meta.responsable as Record<string, unknown>)?.full_name || 'Sin asignar'),
+      responsable_id: Number(meta.responsable_id) || undefined,
+      fecha_fin: String(meta.fecha_fin),
+      estado: computarEstadoMeta(meta.actividades as Activity[]),
+      actividades: (meta.actividades as Activity[]) || [],
+      indicadores: Array.isArray(meta.indicadores)
+        ? meta.indicadores.map((ind: Record<string, unknown>) => ({
+            id: String(ind.id),
+            tipo: String(ind.tipo) as 'link' | 'file',
+            valor: String(ind.valor)
+          }))
+        : [],
+      anio: extraerAnio(String(meta.fecha_fin))
     }));
   } catch (error) {
     console.error('Error fetching metas:', error);
@@ -125,7 +126,6 @@ const fetchMetas = async (): Promise<Meta[]> => {
 };
 
 export default function MonitoreoPage() {
-  const router = useRouter();
   const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
   const [metas, setMetas] = useState<Meta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -231,7 +231,7 @@ export default function MonitoreoPage() {
 
                 let isFirstObjectiveRow = true;
 
-                return objetivoMetas.flatMap((meta: Meta, metaIndex: number) => {
+                return objetivoMetas.flatMap((meta: Meta) => {
                   const metaActivities = meta.actividades || [];
 
                   // Calculate total rows for the meta

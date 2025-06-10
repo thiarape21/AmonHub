@@ -88,19 +88,26 @@ const computarEstadoMeta = (actividades: Activity[] = []): string => {
 const fetchMetas = async (): Promise<Meta[]> => {
   try {
     const data = await apiCall('/metas');
-    return data.map((meta: any) => ({
-      id: meta.id.toString(),
-      descripcion: meta.descripcion,
-      objetivos: meta.objetivos?.map((obj: any) => obj.objetivo.id.toString()) || [],
-      responsable: meta.responsable?.full_name || 'Sin asignar',
-      responsable_id: meta.responsable_id,
-      fecha_fin: meta.fecha_fin,
-      estado: computarEstadoMeta(meta.actividades),
-      actividades: meta.actividades || [],
-      indicadores: meta.indicadores?.map((ind: any) => ({
-        type: ind.tipo,
-        value: ind.valor
-      })) || []
+    return data.map((meta: Record<string, unknown>) => ({
+      id: String(meta.id),
+      descripcion: String(meta.descripcion),
+      objetivos: Array.isArray(meta.objetivos) 
+        ? meta.objetivos.map((obj: Record<string, unknown>) => {
+            const objetivo = obj.objetivo as Record<string, unknown> | undefined;
+            return String(objetivo?.id || '');
+          })
+        : [],
+      responsable: String((meta.responsable as Record<string, unknown>)?.full_name || 'Sin asignar'),
+      responsable_id: Number(meta.responsable_id) || undefined,
+      fecha_fin: String(meta.fecha_fin),
+      estado: computarEstadoMeta(meta.actividades as Activity[]),
+      actividades: (meta.actividades as Activity[]) || [],
+      indicadores: Array.isArray(meta.indicadores)
+        ? meta.indicadores.map((ind: Record<string, unknown>) => ({
+            type: String(ind.tipo) as 'link' | 'file',
+            value: String(ind.valor)
+          }))
+        : []
     }));
   } catch (error) {
     console.error('Error fetching metas:', error);
@@ -125,18 +132,25 @@ const createMeta = async (metaData: Omit<Meta, "id">): Promise<Meta | null> => {
     });
 
     return {
-      id: data.id.toString(),
-      descripcion: data.descripcion,
-      objetivos: data.objetivos?.map((obj: any) => obj.objetivo.id.toString()) || [],
-      responsable: data.responsable?.full_name || 'Sin asignar',
-      responsable_id: data.responsable_id,
-      fecha_fin: data.fecha_fin,
-      estado: computarEstadoMeta(data.actividades),
-      actividades: data.actividades || [],
-      indicadores: data.indicadores?.map((ind: any) => ({
-        type: ind.tipo,
-        value: ind.valor
-      })) || []
+      id: String(data.id),
+      descripcion: String(data.descripcion),
+      objetivos: Array.isArray(data.objetivos) 
+        ? data.objetivos.map((obj: Record<string, unknown>) => {
+            const objetivo = obj.objetivo as Record<string, unknown> | undefined;
+            return String(objetivo?.id || '');
+          })
+        : [],
+      responsable: String((data.responsable as Record<string, unknown>)?.full_name || 'Sin asignar'),
+      responsable_id: Number(data.responsable_id) || undefined,
+      fecha_fin: String(data.fecha_fin),
+      estado: computarEstadoMeta(data.actividades as Activity[]),
+      actividades: (data.actividades as Activity[]) || [],
+      indicadores: Array.isArray(data.indicadores)
+        ? data.indicadores.map((ind: Record<string, unknown>) => ({
+            type: String(ind.tipo) as 'link' | 'file',
+            value: String(ind.valor)
+          }))
+        : []
     };
   } catch (error) {
     console.error('Error creating meta:', error);
@@ -159,32 +173,29 @@ const updateMeta = async (id: string, metaData: Omit<Meta, "id">): Promise<Meta 
     });
 
     return {
-      id: data.id.toString(),
-      descripcion: data.descripcion,
-      objetivos: data.objetivos?.map((obj: any) => obj.objetivo.id.toString()) || [],
-      responsable: data.responsable?.full_name || 'Sin asignar',
-      responsable_id: data.responsable_id,
-      fecha_fin: data.fecha_fin,
-      estado: computarEstadoMeta(data.actividades),
-      actividades: data.actividades || [],
-      indicadores: data.indicadores?.map((ind: any) => ({
-        type: ind.tipo,
-        value: ind.valor
-      })) || []
+      id: String(data.id),
+      descripcion: String(data.descripcion),
+      objetivos: Array.isArray(data.objetivos) 
+        ? data.objetivos.map((obj: Record<string, unknown>) => {
+            const objetivo = obj.objetivo as Record<string, unknown> | undefined;
+            return String(objetivo?.id || '');
+          })
+        : [],
+      responsable: String((data.responsable as Record<string, unknown>)?.full_name || 'Sin asignar'),
+      responsable_id: Number(data.responsable_id) || undefined,
+      fecha_fin: String(data.fecha_fin),
+      estado: computarEstadoMeta(data.actividades as Activity[]),
+      actividades: (data.actividades as Activity[]) || [],
+      indicadores: Array.isArray(data.indicadores)
+        ? data.indicadores.map((ind: Record<string, unknown>) => ({
+            type: String(ind.tipo) as 'link' | 'file',
+            value: String(ind.valor)
+          }))
+        : []
     };
   } catch (error) {
     console.error('Error updating meta:', error);
     return null;
-  }
-};
-
-const deleteMeta = async (id: string): Promise<boolean> => {
-  try {
-    await apiCall(`/metas/${id}`, { method: 'DELETE' });
-    return true;
-  } catch (error) {
-    console.error('Error deleting meta:', error);
-    return false;
   }
 };
 
@@ -233,9 +244,9 @@ const createIndicador = async (metaId: string, tipo: string, valor: string): Pro
 const fetchObjetivos = async (): Promise<Objetivo[]> => {
   try {
     const data = await apiCall('/objetivos');
-    return data.map((obj: any) => ({
-      id: obj.id.toString(),
-      nombre: obj.nombre
+    return data.map((obj: Record<string, unknown>) => ({
+      id: String(obj.id),
+      nombre: String(obj.nombre)
     }));
   } catch (error) {
     console.error('Error fetching objetivos:', error);
@@ -270,12 +281,10 @@ export default function PlanOperativoPage() {
     indicadores: [],
   });
   const [nuevaActividad, setNuevaActividad] = useState("");
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [newIndicatorLink, setNewIndicatorLink] = useState('');
   const [uploadMessage, setUploadMessage] = useState('');
 
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -365,17 +374,6 @@ export default function PlanOperativoPage() {
     setUploadMessage('');
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("¿Seguro que deseas eliminar esta meta?")) return;
-    
-    setLoading(true);
-    const success = await deleteMeta(id);
-    if (success) {
-      setMetas(metas.filter(m => m.id !== id));
-    }
-    setLoading(false);
-  };
-
   const handleActivityCompletionToggle = async (activityId: string) => {
     if (!editMeta) return;
     
@@ -458,7 +456,7 @@ export default function PlanOperativoPage() {
   };
 
   // Nueva función para manejar archivos subidos desde Supabase Storage
-  const handleFileUploadComplete = async (uploadedFiles: any[]) => {
+  const handleFileUploadComplete = async (uploadedFiles: Array<{ file: string; url: string; data?: unknown }>) => {
     if (!editMeta) {
       setUploadMessage('Error: No se puede subir archivos sin una meta seleccionada');
       return;
@@ -496,7 +494,7 @@ export default function PlanOperativoPage() {
     }));
   };
 
-  const filteredMetas = metas.filter(meta => {
+  const filteredMetas = metas.filter(() => {
     // TODO: Implementar filtrado por año cuando se agregue el campo año a las metas
     return true;
   });
@@ -516,7 +514,7 @@ export default function PlanOperativoPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-4xl font-bold text-center mb-6 text-[#546b70]">Plan Operativo Anual {selectedYear}</h1>
+      <h1 className="text-4xl font-bold text-center mb-6 text-[#546b70]">Plan Operativo Anual {currentYear}</h1>
 
       <div className="flex justify-end mb-4">
         <CustomButton onClick={() => {

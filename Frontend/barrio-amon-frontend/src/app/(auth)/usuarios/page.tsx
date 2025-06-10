@@ -1,20 +1,8 @@
-  import { UsersTable } from "@/components/users/users-table";
+import { UsersTable } from "@/components/users/users-table";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { CustomButton } from "@/components/ui/custom-button";
-
-enum UserRole {
-  ADMIN = "Administrador",
-  MEMBER = "Miembro",
-  CONSULTANT = "Consultor",
-}
-
-interface User {
-  id: string;
-  full_name: string;
-  email: string;
-  role: UserRole;
-}
+import { User } from "@/types/user";
 
 async function getUsers(): Promise<User[]> {
   const res = await fetch("http://localhost:3030/api/usuarios/", {

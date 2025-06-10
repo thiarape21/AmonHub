@@ -11,6 +11,7 @@ interface FileUploaderProps {
   acceptedTypes?: string;
   maxSize?: number; // in MB
   multiple?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onUploadComplete?: (files: any[]) => void;
   className?: string;
 }
@@ -18,6 +19,7 @@ interface FileUploaderProps {
 interface UploadedFile {
   file: string;
   url: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
 }
 

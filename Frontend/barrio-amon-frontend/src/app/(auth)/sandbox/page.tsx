@@ -5,13 +5,29 @@ import { FileUploader } from '@/components/storage/FileUploader';
 import { useSupabaseStorage } from '@/hooks/useSupabaseStorage';
 import { CustomButton } from '@/components/ui/custom-button';
 
+interface UploadedFile {
+  file: string;
+  url: string;
+  data?: {
+    path?: string;
+  };
+}
+
+interface FileInfo {
+  name: string;
+  path: string;
+  size: number;
+  type: string;
+  uploadedAt: string;
+}
+
 export default function SandboxPage() {
-  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
-  const [filesList, setFilesList] = useState<any[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [filesList, setFilesList] = useState<FileInfo[]>([]);
   const [message, setMessage] = useState<string>('');
   const { listFiles, deleteFile } = useSupabaseStorage('archivos');
 
-  const handleUploadComplete = (files: any[]) => {
+  const handleUploadComplete = (files: UploadedFile[]) => {
     setUploadedFiles(prev => [...prev, ...files]);
     setMessage(`${files.length} archivo(s) subido(s) exitosamente`);
     setTimeout(() => setMessage(''), 3000);
@@ -113,7 +129,7 @@ export default function SandboxPage() {
           </div>
         ) : (
           <p className="text-gray-500 text-center py-4">
-            No hay archivos. Haz clic en "Actualizar Lista" para cargar.
+            No hay archivos. Haz clic en &quot;Actualizar Lista&quot; para cargar.
           </p>
         )}
       </div>

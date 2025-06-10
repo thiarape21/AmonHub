@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CustomButton } from "@/components/ui/custom-button";
 
 interface FodaElement {

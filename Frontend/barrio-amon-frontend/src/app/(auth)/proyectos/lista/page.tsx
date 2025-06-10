@@ -10,34 +10,34 @@ interface Objetivo {
   nombre: string;
 }
 
-// Utility function to determine project status based on tasks
-function getProjectStatus(Tareas: Proyecto['Tareas']): string {
-  if (!Tareas || Tareas.length === 0) {
-    return "Pendiente";
-  }
+// // Utility function to determine project status based on tasks
+// function getProjectStatus(Tareas: Proyecto['Tareas']): string {
+//   if (!Tareas || Tareas.length === 0) {
+//     return "Pendiente";
+//   }
 
-  const totalTasks = Tareas.length;
-  const completedTasks = Tareas.filter(tarea => tarea.estado === 'Completada').length;
-  const canceledTasks = Tareas.filter(tarea => tarea.estado === 'Cancelada').length;
-  const inProgressOrPendingTasks = Tareas.filter(tarea => tarea.estado === 'En proceso' || tarea.estado === 'Pendiente').length;
+//   const totalTasks = Tareas.length;
+//   const completedTasks = Tareas.filter(tarea => tarea.estado === 'Completada').length;
+//   const canceledTasks = Tareas.filter(tarea => tarea.estado === 'Cancelada').length;
+//   const inProgressOrPendingTasks = Tareas.filter(tarea => tarea.estado === 'En proceso' || tarea.estado === 'Pendiente').length;
 
-  if (canceledTasks === totalTasks) {
-    return "Cancelado";
-  } else if (canceledTasks > 0) {
-     // If some are canceled, and all non-canceled are completed
-     if (completedTasks + canceledTasks === totalTasks) {
-       return "Completada (con cancelaciones)";
-     } else {
-        return "En proceso (con cancelaciones)"; // Or another appropriate mixed status
-     }
-  } else if (completedTasks === totalTasks) {
-    return "Completada";
-  } else if (inProgressOrPendingTasks > 0) {
-    return "En proceso";
-  } else {
-     return "Pendiente"; // Should not reach here if tasks exist but none are in above states
-  }
-}
+//   if (canceledTasks === totalTasks) {
+//     return "Cancelado";
+//   } else if (canceledTasks > 0) {
+//      // If some are canceled, and all non-canceled are completed
+//      if (completedTasks + canceledTasks === totalTasks) {
+//        return "Completada (con cancelaciones)";
+//      } else {
+//         return "En proceso (con cancelaciones)"; // Or another appropriate mixed status
+//      }
+//   } else if (completedTasks === totalTasks) {
+//     return "Completada";
+//   } else if (inProgressOrPendingTasks > 0) {
+//     return "En proceso";
+//   } else {
+//      return "Pendiente"; // Should not reach here if tasks exist but none are in above states
+//   }
+// }
 
 export default function ProyectosListaPage() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
@@ -47,29 +47,16 @@ export default function ProyectosListaPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Comentado temporalmente para evitar el error de base de datos
-    // fetch("http://localhost:3030/api/proyectos")
-    //   .then((res) => res.json())
-    //   .then((data) => {
-    //     if (Array.isArray(data)) {
-    //       setProyectos(data);
-    //     } else {
-    //       setProyectos([]);
-    //       console.error("Error al obtener proyectos:", data?.error || data);
-    //     }
-    //   });
     fetch("http://localhost:3030/api/proyectos")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
           setProyectos(data);
         } else {
-          // Si la API falla o está vacía, usar datos de ejemplo
           console.error("Error al obtener proyectos o API vacía:", data?.error || data);
-          setProyectos(proyectosEjemplo as Proyecto[]); // Usar datos de ejemplo
+          setProyectos([]);
         }
       });
-    console.log("proyectos", proyectos);
     fetch("http://localhost:3030/api/objetivos")
       .then((res) => res.json())
       .then((data) => {
@@ -77,13 +64,6 @@ export default function ProyectosListaPage() {
         else setObjetivos([]);
       });
   }, []);
-
-  const handleDelete = async (id: number) => {
-    if (!confirm("¿Seguro que deseas eliminar este proyecto?")) return;
-    
-    await fetch(`http://localhost:3030/api/proyectos/${id}`, { method: "DELETE" });
-    setProyectos(proyectos.filter((p) => p.id !== id));
-  };
 
   const handleEditClick = (proyecto: Proyecto) => {
     setEditingProyecto(proyecto);
@@ -93,55 +73,7 @@ export default function ProyectosListaPage() {
   const handleModalClose = () => {
     setShowEditModal(false);
     setEditingProyecto(null);
-    // Aquí podrías volver a fetchear proyectos si es necesario actualizar la lista después de guardar
-    // fetch("http://localhost:3030/api/proyectos")...
   };
-
-  // Ejemplo de proyecto para mostrar en la lista
-  const proyectosEjemplo = [
-    {
-      id: 1,
-      nombre: "Mejorar la Plaza Central",
-      descripcion: "Proyecto para renovar la plaza central del barrio, incluyendo áreas verdes, bancas y luminarias.",
-      objetivo_id: 1,
-      estado_avance: "En proceso",
-      fecha_inicio: "2024-06-01",
-      fecha_fin: "2024-12-31",
-      colaboradores: "Ana Gómez,Juan Pérez",
-      responsable: "Carlos Ruiz",
-      Tareas: [
-        {
-          nombre: "Diseñar el nuevo plano de la plaza",
-          responsable: "Ana Gómez",
-          fecha_inicio: "2024-06-01",
-          fecha_fin: "2024-06-15",
-          estado: "Completada" as "Completada",
-        },
-        {
-          nombre: "Contratar empresa constructora",
-          responsable: "Juan Pérez",
-          fecha_inicio: "2024-06-16",
-          fecha_fin: "2024-07-01",
-          estado: "En proceso" as "En proceso",
-        },
-        {
-          nombre: "Supervisar la instalación de luminarias",
-          responsable: "Carlos Ruiz",
-          fecha_inicio: "2024-07-10",
-          fecha_fin: "2024-08-01",
-          estado: "Pendiente" as "Pendiente",
-        },
-        {
-          nombre: "Tarea Cancelada Ejemplo",
-          responsable: "María López",
-          fecha_inicio: "2024-07-10",
-          fecha_fin: "2024-08-01",
-          estado: "Cancelada" as "Cancelada",
-          cancel_reason: "Recursos insuficientes",
-        }
-      ]
-    }
-  ];
 
   return (
     <div className="container mx-auto py-8">
@@ -167,10 +99,8 @@ export default function ProyectosListaPage() {
               </tr>
             </thead>
             <tbody>
-              {(proyectos.length > 0 ? proyectos : proyectosEjemplo).map((proyecto) => {
+              {proyectos.map((proyecto) => {
                 const objetivo = objetivos.find(o => o.id === proyecto.objetivo_id);
-                // Determine project status based on tasks
-                const projectStatus = getProjectStatus(proyecto.Tareas);
                 return (
                   <tr key={proyecto.id} className="border-b">
                     <td className="py-2 px-4 text-left">{objetivo ? objetivo.nombre : <span className="text-gray-400 italic">Sin objetivo</span>}</td>
@@ -179,7 +109,6 @@ export default function ProyectosListaPage() {
                     <td className="py-2 px-4 text-left text-sm">{proyecto.responsable}</td>
                     <td className="py-2 px-4 text-left text-sm">{proyecto.colaboradores}</td>
                     <td className="py-2 px-4 text-left text-sm">
-                      {/* Display tasks */}
                       {proyecto.Tareas && proyecto.Tareas.length > 0 ? (
                         <ul className="list-disc list-inside">
                           {proyecto.Tareas.map((tarea, idx) => (

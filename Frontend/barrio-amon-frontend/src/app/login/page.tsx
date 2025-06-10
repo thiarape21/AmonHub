@@ -1,11 +1,21 @@
 "use client";
 
+import { Suspense } from "react";
+import { AuthCard } from "@/components/auth/auth-card";
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<AuthCard title="Iniciar sesión">Cargando...</AuthCard>}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Form } from "@/components/ui/form";
 import Link from "next/link";
-import { AuthCard } from "@/components/auth/auth-card";
 import { FormInput } from "@/components/auth/form-input";
 import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 import { useState, useEffect } from "react";
@@ -19,10 +29,9 @@ const formSchema = z.object({
     .min(8, { message: "La contraseña debe tener al menos 8 caracteres" }),
 });
 
-export default function LoginPage() {
+function LoginForm() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -52,7 +61,6 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setErrorMessage(null);
     setSuccessMessage(null);
-    setIsLoading(true);
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email: values.email,
@@ -70,10 +78,8 @@ export default function LoginPage() {
         const redirectTo = searchParams.get("redirectedFrom") || "/inicio";
         router.push(redirectTo);
       }
-    } catch (error) {
+    } catch {
       setErrorMessage("Error de conexión con el servidor");
-    } finally {
-      setIsLoading(false);
     }
   }
 

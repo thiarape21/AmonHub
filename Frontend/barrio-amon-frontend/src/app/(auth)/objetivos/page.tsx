@@ -75,8 +75,10 @@ async function fetchData() {
     if (Array.isArray(objetivosData)) setObjetivos(objetivosData);
     if (Array.isArray(fodaData)) setFodaElements(fodaData);
     if (Array.isArray(usersData)) {
-      const valid = usersData.filter((u: any): u is Usuario =>
-        typeof u.id === "number" && typeof u.full_name === "string"
+      const valid = usersData.filter((u: unknown): u is Usuario =>
+        typeof u === 'object' && u !== null && 
+        typeof (u as Usuario).id === "number" && 
+        typeof (u as Usuario).full_name === "string"
       );
       setUsuarios(valid);
     }
