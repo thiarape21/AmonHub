@@ -49,7 +49,7 @@ interface Usuario {
 // API FUNCTIONS
 // ============================================
 
-const API_BASE_URL = "http://localhost:3030/api";
+const API_BASE_URL = "https://amonhub.onrender.com/api";
 
 // Función helper para llamadas API
 const apiCall = async (url: string, options: RequestInit = {}) => {

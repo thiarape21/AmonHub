@@ -47,7 +47,7 @@ export default function ProyectosListaPage() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch("http://localhost:3030/api/proyectos")
+    fetch("https://amonhub.onrender.com/api/proyectos")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -57,7 +57,7 @@ export default function ProyectosListaPage() {
           setProyectos([]);
         }
       });
-    fetch("http://localhost:3030/api/objetivos")
+    fetch("https://amonhub.onrender.com/api/objetivos")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setObjetivos(data);

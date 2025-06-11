@@ -52,7 +52,7 @@ export default function ProyectoDetallePage() {
     // Fetch data based on mode
     if (isEditing) {
       // Fetch all data needed for editing
-      fetch(`http://localhost:3030/api/proyectos/${id}`)
+      fetch(`https://amonhub.onrender.com/api/proyectos/${id}`)
         .then((res) => res.json())
         .then((data) => {
           setProyecto(data);
@@ -64,12 +64,12 @@ export default function ProyectoDetallePage() {
 
     } else {
       // Fetch data needed for detail view
-      fetch(`http://localhost:3030/api/proyectos/${id}`)
+      fetch(`https://amonhub.onrender.com/api/proyectos/${id}`)
         .then((res) => res.json())
         .then((data) => {
           setProyecto(data);
           if (data?.objetivo_id) {
-            fetch(`http://localhost:3030/api/objetivos`)
+            fetch(`https://amonhub.onrender.com/api/objetivos`)
               .then((res) => res.json())
               .then((objetivos) => {
                 if (Array.isArray(objetivos)) {
@@ -81,7 +81,7 @@ export default function ProyectoDetallePage() {
         });
 
       // Fetch SMART objectives for detail view
-      fetch(`http://localhost:3030/api/proyectos/${id}/objetivos-smart`)
+      fetch(`https://amonhub.onrender.com/api/proyectos/${id}/objetivos-smart`)
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data)) {

@@ -5,7 +5,7 @@ import { CustomButton } from "@/components/ui/custom-button";
 import { User } from "@/types/user";
 
 async function getUsers(): Promise<User[]> {
-  const res = await fetch("http://localhost:3030/api/usuarios/", {
+  const res = await fetch("https://amonhub.onrender.com/api/usuarios/", {
     cache: "no-store", // Disable caching to always get fresh data
   });
 

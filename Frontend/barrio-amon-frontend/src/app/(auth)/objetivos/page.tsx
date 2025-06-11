@@ -57,9 +57,9 @@ export default function ObjetivosPage() {
 async function fetchData() {
   try {
     const [objetivosRes, fodaRes, usersRes] = await Promise.all([
-      fetch("http://localhost:3030/api/objetivos"),
-      fetch("http://localhost:3030/api/analisis-foda"),
-      fetch("http://localhost:3030/api/usuarios"),
+      fetch("https://amonhub.onrender.com/api/objetivos"),
+      fetch("https://amonhub.onrender.com/api/analisis-foda"),
+      fetch("https://amonhub.onrender.com/api/usuarios"),
     ]);
 
     const [objetivosData, fodaData, usersData] = await Promise.all([
@@ -126,8 +126,8 @@ async function fetchData() {
     };
 
     const url = editObjetivo
-      ? `http://localhost:3030/api/objetivos/${editObjetivo.id}`
-      : "http://localhost:3030/api/objetivos";
+      ? `https://amonhub.onrender.com/api/objetivos/${editObjetivo.id}`
+      : "https://amonhub.onrender.com/api/objetivos";
 
     const method = editObjetivo ? "PUT" : "POST";
 
@@ -164,7 +164,7 @@ const handleEdit = (objetivo: Objetivo) => {
 
   const handleDelete = async (id?: string) => {
     if (!id || !confirm("¿Seguro que deseas eliminar este objetivo?")) return;
-    await fetch(`http://localhost:3030/api/objetivos/${id}`, { method: "DELETE" });
+    await fetch(`https://amonhub.onrender.com/api/objetivos/${id}`, { method: "DELETE" });
     fetchData();
   };
 

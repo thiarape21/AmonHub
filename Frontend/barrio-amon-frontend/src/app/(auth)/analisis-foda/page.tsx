@@ -12,13 +12,13 @@ interface FodaElement {
 // === Funciones para interactuar con API ===
 
 async function getFoda(): Promise<FodaElement[]> {
-  const res = await fetch("http://localhost:3030/api/analisis-foda", { cache: "no-store" });
+  const res = await fetch("https://amonhub.onrender.com/api/analisis-foda", { cache: "no-store" });
   if (!res.ok) throw new Error("No se pudieron obtener los elementos FODA");
   return res.json();
 }
 
 async function createFoda(elemento: Omit<FodaElement, "id">): Promise<void> {
-  const res = await fetch("http://localhost:3030/api/analisis-foda", {
+  const res = await fetch("https://amonhub.onrender.com/api/analisis-foda", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(elemento),
@@ -27,7 +27,7 @@ async function createFoda(elemento: Omit<FodaElement, "id">): Promise<void> {
 }
 
 async function updateFoda(id: string, elemento: Omit<FodaElement, "id">): Promise<void> {
-  const res = await fetch(`http://localhost:3030/api/analisis-foda/${id}`, {
+  const res = await fetch(`https://amonhub.onrender.com/api/analisis-foda/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(elemento),
@@ -36,7 +36,7 @@ async function updateFoda(id: string, elemento: Omit<FodaElement, "id">): Promis
 }
 
 async function deleteFoda(id: string): Promise<void> {
-  const res = await fetch(`http://localhost:3030/api/analisis-foda/${id}`, {
+  const res = await fetch(`https://amonhub.onrender.com/api/analisis-foda/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Error al eliminar el elemento FODA");

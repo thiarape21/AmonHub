@@ -55,7 +55,7 @@ export default function ObjetivosPage() {
   const [usuarios, setUsuarios] = useState<{ id: string; full_name: string }[]>([]);
 
   useEffect(() => {
-    fetch("http://localhost:3030/api/objetivos")
+    fetch("https://amonhub.onrender.com/api/objetivos")
       .then((res) => {
         if (!res.ok) throw new Error(`Error fetching objetivos: ${res.statusText}`);
         return res.json();
@@ -66,7 +66,7 @@ export default function ObjetivosPage() {
       })
       .catch((error) => console.error("Failed to fetch objetivos:", error));
 
-    fetch("http://localhost:3030/api/usuarios")
+    fetch("https://amonhub.onrender.com/api/usuarios")
       .then((res) => {
         if (!res.ok) throw new Error(`Error fetching usuarios: ${res.statusText}`);
         return res.json();
@@ -90,7 +90,7 @@ export default function ObjetivosPage() {
       metas: tipo === "operativo" ? metas : [],
       tareas: tipo === "operativo" ? tareas : [],
     };
-    let url = "http://localhost:3030/api/objetivos";
+    let url = "https://amonhub.onrender.com/api/objetivos";
     let method = "POST";
     if (editObjetivo) {
       url += `/${editObjetivo.id}`;
@@ -113,7 +113,7 @@ export default function ObjetivosPage() {
       setMetas([]);
       setTareas([]);
       // Refrescar lista
-      fetch("http://localhost:3030/api/objetivos")
+      fetch("https://amonhub.onrender.com/api/objetivos")
         .then((res) => res.json())
         .then((data) => Array.isArray(data) && setObjetivos(data));
     }
@@ -143,7 +143,7 @@ export default function ObjetivosPage() {
   const handleDelete = async (id?: string) => {
     if (!id) return;
     if (!confirm("¿Seguro que deseas eliminar este objetivo?")) return;
-    await fetch(`http://localhost:3030/api/objetivos/${id}`, { method: "DELETE" });
+    await fetch(`https://amonhub.onrender.com/api/objetivos/${id}`, { method: "DELETE" });
     setObjetivos(objetivos.filter((o) => o.id !== id));
   };
 

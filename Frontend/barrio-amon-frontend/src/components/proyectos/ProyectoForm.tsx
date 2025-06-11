@@ -111,7 +111,7 @@ export default function ProyectoForm({
   const [uploadMessage, setUploadMessage] = useState('');
 
   useEffect(() => {
-    fetch("http://localhost:3030/api/objetivos")
+    fetch("https://amonhub.onrender.com/api/objetivos")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setObjetivos(data);
@@ -121,7 +121,7 @@ export default function ProyectoForm({
         console.error("Error fetching objetivos:", error);
         setObjetivos([]);
       });
-    fetch("http://localhost:3030/api/usuarios")
+    fetch("https://amonhub.onrender.com/api/usuarios")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setUsuarios(data);
@@ -132,7 +132,7 @@ export default function ProyectoForm({
         setUsuarios([]);
       });
     if (modo === "editar" && proyecto.id) {
-      fetch(`http://localhost:3030/api/proyectos/${proyecto.id}/objetivos-smart`)
+      fetch(`https://amonhub.onrender.com/api/proyectos/${proyecto.id}/objetivos-smart`)
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data)) setObjetivosSmart(data);
@@ -142,7 +142,7 @@ export default function ProyectoForm({
           setObjetivosSmart([]);
         });
 
-      fetch(`http://localhost:3030/api/proyectos/${proyecto.id}/indicadores-proyecto`)
+      fetch(`https://amonhub.onrender.com/api/proyectos/${proyecto.id}/indicadores-proyecto`)
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data)) setIndicadoresProyecto(data);
@@ -153,7 +153,7 @@ export default function ProyectoForm({
         });
 
       // Fetch existing tasks if editing
-      fetch(`http://localhost:3030/api/proyectos/${proyecto.id}/tareas`)
+      fetch(`https://amonhub.onrender.com/api/proyectos/${proyecto.id}/tareas`)
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data)) setTareas(data);
@@ -177,8 +177,8 @@ export default function ProyectoForm({
 
     try {
       const url = modo === "crear"
-        ? "http://localhost:3030/api/proyectos"
-        : `http://localhost:3030/api/proyectos/${proyecto.id}`;
+        ? "https://amonhub.onrender.com/api/proyectos"
+        : `https://amonhub.onrender.com/api/proyectos/${proyecto.id}`;
       const method = modo === "crear" ? "POST" : "PUT";
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -196,7 +196,7 @@ export default function ProyectoForm({
 
       if (objetivosSmart.length > 0) {
         // Primero, elimina los existentes
-        await fetch(`http://localhost:3030/api/proyectos/${proyectoGuardado.id}/objetivos-smart`, {
+        await fetch(`https://amonhub.onrender.com/api/proyectos/${proyectoGuardado.id}/objetivos-smart`, {
           method: "DELETE"
         });
 
@@ -210,7 +210,7 @@ export default function ProyectoForm({
           };
         });
 
-        await fetch(`http://localhost:3030/api/proyectos/${proyectoGuardado.id}/objetivos-smart`, {
+        await fetch(`https://amonhub.onrender.com/api/proyectos/${proyectoGuardado.id}/objetivos-smart`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(objetivosSmartConProyectoId),
@@ -226,14 +226,14 @@ export default function ProyectoForm({
 
         if (!tarea.id) {
           // Crear nueva tarea
-          await fetch(`http://localhost:3030/api/proyectos/${proyectoGuardado.id}/tareas`, {
+          await fetch(`https://amonhub.onrender.com/api/proyectos/${proyectoGuardado.id}/tareas`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(tareaData),
           });
         } else {
           // Actualizar tarea existente
-          await fetch(`http://localhost:3030/api/tareas/${tarea.id}`, {
+          await fetch(`https://amonhub.onrender.com/api/tareas/${tarea.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(tareaData),
@@ -254,7 +254,7 @@ export default function ProyectoForm({
 
   const handleCrearObjetivo = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch("http://localhost:3030/api/objetivos", {
+    const res = await fetch("https://amonhub.onrender.com/api/objetivos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nombre: nuevoNombre, descripcion: nuevoDescripcion }),
@@ -304,7 +304,7 @@ export default function ProyectoForm({
     const objetivo = objetivosSmart[idx];
     // Si tiene id, eliminar en backend
     if (objetivo.id) {
-      await fetch(`http://localhost:3030/api/objetivos-smart/${objetivo.id}`, {
+      await fetch(`https://amonhub.onrender.com/api/objetivos-smart/${objetivo.id}`, {
         method: "DELETE"
       });
     }
@@ -318,7 +318,7 @@ export default function ProyectoForm({
     const indicadorToRemove = indicadoresProyecto[idx];
     if (indicadorToRemove.id) {
       try {
-        const response = await fetch(`http://localhost:3030/api/indicadores-proyecto/${indicadorToRemove.id}`, {
+        const response = await fetch(`https://amonhub.onrender.com/api/indicadores-proyecto/${indicadorToRemove.id}`, {
           method: 'DELETE',
         });
 
@@ -393,7 +393,7 @@ export default function ProyectoForm({
     try {
       // Guardar cada archivo subido como indicador en la base de datos
       for (const file of uploadedFiles) {
-        const response = await fetch(`http://localhost:3030/api/proyectos/${proyecto.id}/indicadores-proyecto`, {
+        const response = await fetch(`https://amonhub.onrender.com/api/proyectos/${proyecto.id}/indicadores-proyecto`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -413,7 +413,7 @@ export default function ProyectoForm({
       setTimeout(() => setUploadMessage(''), 3000);
       
       // After successful uploads, refetch the updated list of indicators
-      const updatedIndicators = await fetch(`http://localhost:3030/api/proyectos/${proyecto.id}/indicadores-proyecto`).then(res => res.json());
+      const updatedIndicators = await fetch(`https://amonhub.onrender.com/api/proyectos/${proyecto.id}/indicadores-proyecto`).then(res => res.json());
       if (Array.isArray(updatedIndicators)) {
         setIndicadoresProyecto(updatedIndicators);
       }
@@ -719,7 +719,7 @@ function TareaModal({
 
     // Cargar indicadores si estamos editando una tarea existente
     if (tarea?.id) {
-      fetch(`http://localhost:3030/api/tareas/${tarea.id}/indicadores`)
+      fetch(`https://amonhub.onrender.com/api/tareas/${tarea.id}/indicadores`)
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) {
@@ -774,7 +774,7 @@ function TareaModal({
     try {
       // Guardar cada archivo como indicador en la base de datos
       for (const file of uploadedFiles) {
-        const response = await fetch(`http://localhost:3030/api/tareas/${tarea.id}/indicadores`, {
+        const response = await fetch(`https://amonhub.onrender.com/api/tareas/${tarea.id}/indicadores`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -794,7 +794,7 @@ function TareaModal({
       setTimeout(() => setUploadMessage(''), 3000);
       
       // Actualizar la lista de indicadores después de la subida
-      const updatedIndicators = await fetch(`http://localhost:3030/api/tareas/${tarea.id}/indicadores`).then(res => res.json());
+      const updatedIndicators = await fetch(`https://amonhub.onrender.com/api/tareas/${tarea.id}/indicadores`).then(res => res.json());
       if (Array.isArray(updatedIndicators)) {
         setIndicadoresTarea(updatedIndicators);
       }
@@ -810,7 +810,7 @@ function TareaModal({
     const indicadorToRemove = indicadoresTarea[idx];
     if (indicadorToRemove.id) {
       try {
-        const response = await fetch(`http://localhost:3030/api/indicadores-tarea/${indicadorToRemove.id}`, {
+        const response = await fetch(`https://amonhub.onrender.com/api/indicadores-tarea/${indicadorToRemove.id}`, {
           method: 'DELETE',
         });
 

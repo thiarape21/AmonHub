@@ -30,7 +30,7 @@ export function UsersTable({ initialUsers }: UsersTableProps) {
 
   const handleDeleteUser = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:3030/api/usuarios/${id}`, {
+      const res = await fetch(`https://amonhub.onrender.com/api/usuarios/${id}`, {
         method: "DELETE",
       });
 
@@ -47,7 +47,7 @@ export function UsersTable({ initialUsers }: UsersTableProps) {
 
   const handleRoleChange = async (userId: string, newRoleID: number) => {
     try {
-      const res = await fetch(`http://localhost:3030/api/usuarios/${userId}`, {
+      const res = await fetch(`https://amonhub.onrender.com/api/usuarios/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
