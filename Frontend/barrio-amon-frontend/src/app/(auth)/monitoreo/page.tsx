@@ -367,16 +367,16 @@ export default function MonitoreoPage() {
                                     <li key={idx} className="text-sm">
                                       {indicator.tipo === 'link' ? (
                                         <a href={indicator.valor} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                                          {indicator.valor}
+                                          Ir al archivo
                                         </a>
                                       ) : (
                                         <a
-                                          href={`/uploads/${indicator.valor}`}
+                                          href={indicator.valor}
                                           download
                                           className="text-blue-600 hover:underline"
                                           target="_blank"
                                         >
-                                          {indicator.valor}
+                                          Ir al archivo
                                         </a>
                                       )}
                                     </li>

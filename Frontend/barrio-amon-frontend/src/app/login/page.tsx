@@ -75,7 +75,7 @@ function LoginForm() {
 
       if (data.user) {
         // Get the redirect URL from the search params or default to inicio
-        const redirectTo = searchParams.get("redirectedFrom") || "/inicio";
+        const redirectTo = "/inicio";
         router.push(redirectTo);
       }
     } catch {
