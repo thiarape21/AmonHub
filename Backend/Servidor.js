@@ -38,8 +38,14 @@ app.use(cors());
 app.use(express.json());
 app.use(fileUpload());
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
 app.use("/api", dataRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", proyectoRoutes);
 
-app.listen(3030, () => console.log("Servidor en http://localhost:3030"));
+const PORT = process.env.PORT || 3030;
+app.listen(PORT, () => console.log(`Servidor en http://localhost:${PORT}`));

@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: amonhub-backend
+    env: node
+    region: oregon # o la región que prefieras
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false # esto significa que necesitarás configurar esta variable en el dashboard de Render
+      - key: SUPABASE_KEY
+        sync: false
+      - key: PORT
+        value: 3030
+    healthCheckPath: /api/health # asegúrate de implementar este endpoint
+    autoDeploy: true
+    plan: free # o el plan que prefieras
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+    headers:
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: "*" # ajusta esto según tus necesidades de CORS 
